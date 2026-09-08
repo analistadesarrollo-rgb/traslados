@@ -90,36 +90,24 @@ async function executeTransfer({ document, branch, requestId = null }) {
     }).catch(() => {});
     await waitMs(1000);
 
-    // 3) Cerrar horario activo (filtrar por Fecha final = null → lápiz → calendario → Fecha Actual → Guardar)
-    log('Cerrando horario activo');
-    const closed = await shifts.closeCurrentShift(page);
-    if (!closed.ok) {
-      if (closed.error === 'no-active-shift') {
+    // 3) Editar horario activo: filtrar → lápiz → cambiar sucursal → Guardar → cerrar X
+    log('Editando horario activo con sucursal destino', { branch });
+    const edited = await shifts.closeCurrentShift(page, branch);
+    if (!edited.ok) {
+      if (edited.error === 'no-active-shift') {
         logWarn('No se encontró horario activo');
         throw new errors.NoActiveShiftError(document);
       }
-      logWarn('No se pudo cerrar el horario', { error: closed.error });
-      throw new errors.CreateShiftError(`No se pudo cerrar el horario activo. Requiere revisión manual.`);
+      logWarn('No se pudo editar el horario', { error: edited.error });
+      throw new errors.CreateShiftError(`No se pudo editar el horario. Requiere revisión manual.`);
     }
-    log('Horario activo cerrado correctamente');
+    log('Horario editado correctamente');
 
-    // 4) Crear nuevo horario en sucursal destino
-    log('Creando nuevo horario en la sucursal destino', { branch });
-    const created = await shifts.addNewShift(page, branch);
-    if (!created.ok) {
-      if (created.error === 'branch-not-found') {
-        logWarn('La sucursal destino no existe', { branch });
-        throw new errors.BranchNotFoundError(branch);
-      }
-      logWarn('Error creando horario', { branch });
-      throw new errors.CreateShiftError(`No se pudo crear el nuevo horario en la sucursal ${branch}. Requiere revisión manual.`);
-    }
-
-    // 5) Éxito
+    // 4) Éxito
     log('Traslado completado exitosamente');
     return {
       ok: true,
-      sourceBranch: '(filtrado por activo)',
+      sourceBranch: branch,
       destinationBranch: branch,
       at: new Date(),
     };

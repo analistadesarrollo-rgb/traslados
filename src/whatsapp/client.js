@@ -117,6 +117,8 @@ async function startWhatsApp(deps) {
     startedAt: new Date().toISOString(),
   };
 
+  let initializing = false;
+
   waClient.on('qr', (qr) => {
     state.qr = qr;
     handleQr(qr);
@@ -129,20 +131,30 @@ async function startWhatsApp(deps) {
   waClient.on('ready', () => {
     state.connected = true;
     state.ready = true;
+    initializing = false;
     logger.info('Cliente de WhatsApp listo y conectado');
   });
 
   waClient.on('disconnected', (reason) => {
     state.connected = false;
+    state.ready = false;
     state.lastDisconnectReason = reason;
     state.reconnectCount += 1;
-    logger.warn('Cliente de WhatsApp desconectado, reintentando en 5s', { reason, reconnectCount: state.reconnectCount });
-    setTimeout(() => {
-      logger.info('Reintentando conexión de WhatsApp...');
-      waClient.initialize().catch((err) => {
-        logger.error('Error al reconectar WhatsApp', { error: err.message });
-      });
-    }, 5000);
+    logger.warn('Cliente de WhatsApp desconectado', { reason, reconnectCount: state.reconnectCount });
+    if (state.reconnectCount <= 3) {
+      logger.info('Reintentando conexión en 5s...');
+      setTimeout(() => {
+        if (!state.ready && !initializing) {
+          initializing = true;
+          waClient.initialize().catch((err) => {
+            logger.error('Error al reconectar WhatsApp', { error: err.message });
+            initializing = false;
+          });
+        }
+      }, 5000);
+    } else {
+      logger.warn('Demasiadas reconexiones, espere y reinicie manualmente');
+    }
   });
 
   waClient.on('message', (msg) => {
@@ -158,10 +170,10 @@ async function startWhatsApp(deps) {
     logger.error('Error del cliente de WhatsApp', { error: err.message });
   });
 
-  // Reconexión: si el proceso no está `ready`, initialize() reintentará solo
-  // gracias a LocalAuth. También reconectamos tras evento 'disconnected'.
+  initializing = true;
   waClient.initialize().catch((err) => {
     logger.error('Error al inicializar cliente de WhatsApp', { error: err.message });
+    initializing = false;
   });
 
   const sender = {

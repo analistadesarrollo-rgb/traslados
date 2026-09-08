@@ -10,13 +10,10 @@ const { settle, waitMs } = require('./browser');
  *
  * Flujo real (confirmado con el usuario):
  *   1) Buscar persona por documento (Enter).
- *   2) Filtrar tabla por sucursal actual (escribir código + Enter).
+ *   2) Filtrar tabla por Fecha final = "null" (registros activos).
  *   3) Click en lápiz de la fila filtrada → modal de edición.
- *   4) En el modal: click ícono calendario → "Fecha Actual" → Guardar.
- *   5) Click botón "+ Agregar" → modal de nuevo horario.
- *   6) Escribir sucursal destino + Enter → flecha abajo (TODO EL DIA) →
- *      Tab → flecha abajo (Normal) → Tab Tab Enter (fecha inicio) →
- *      Tab Tab Enter (Guardar).
+ *   4) En el modal: doble-click en campo sucursal → escribir código destino →
+ *      Enter → Guardar → cerrar modal con X.
  */
 
 function requireConfigured(selectorsObj, name) {
@@ -182,75 +179,120 @@ async function clickEditIcon(page) {
 }
 
 /**
- * En el modo edición (después de click lápiz): Tab 8 veces → Enter (calendario) →
- * Fecha Actual → Enter (Guardar) → cerrar modal con X.
+ * En el modo edición (después de click lápiz): doble-click en campo sucursal →
+ * escribir código destino → Enter → Guardar → cerrar modal con X.
+ * @param {import('puppeteer').Page} page
+ * @param {string} branchCode  Código de la sucursal destino.
  * @returns {Promise<{ok:boolean, error?:string}>}
  */
-async function setEndDateToday(page) {
-  logger.info('Editando fecha final con navegación por teclado');
+async function editShiftBranch(page, branchCode) {
+  logger.info('Editando sucursal del horario', { branchCode });
 
-  // 1) Tab 6 veces para llegar al ícono de calendario
-  for (let i = 0; i < 6; i++) {
-    await page.keyboard.press('Tab');
-    await waitMs(800);
-  }
-  logger.info('Tab x6 completado');
-  await waitMs(1000);
+  await waitMs(2000);
 
-  // 2) Enter para abrir el calendario
-  await page.keyboard.press('Enter');
-  await waitMs(3000);
-  logger.info('Enter presionado (calendario)');
-
-  // 3) Buscar y hacer click en "Fecha Actual"
-  const clicked = await page.evaluate(() => {
-    const allElements = document.querySelectorAll('span, a, div, button, td');
-    for (const el of allElements) {
-      const text = el.textContent.trim().toLowerCase();
-      if ((text === 'fecha actual' || text === 'fecha de hoy') && el.offsetParent !== null) {
-        el.click();
-        return { found: true, text: el.textContent.trim() };
+  // 1) Buscar y doble-click en el campo de sucursal del modal de edición
+  const found = await page.evaluate(() => {
+    // Buscar input de sucursal en el diálogo de edición (formEditarHorario)
+    const selectors = [
+      '#formEditarHorario\\:txtSucursal',
+      '#formEditarHorario input[id*="Sucursal"]',
+      '#formEditarHorario input[id*="sucursal"]',
+      '#formEditarHorario input[type="text"]',
+    ];
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el && el.offsetParent !== null && !el.readOnly && !el.disabled) {
+        el.focus();
+        el.select();
+        return { found: true, id: el.id };
+      }
+    }
+    // Fallback: buscar en cualquier diálogo visible un input de texto no readonly
+    const dialogs = document.querySelectorAll('.ui-dialog');
+    for (const dialog of dialogs) {
+      if (dialog.style.display === 'none') continue;
+      const title = dialog.querySelector('.ui-dialog-title');
+      if (title && (title.textContent.includes('Horario') || title.textContent.includes('sucursal'))) {
+        const inputs = dialog.querySelectorAll('input[type="text"], input:not([type="hidden"]):not([type="checkbox"])');
+        for (const inp of inputs) {
+          if (inp.offsetParent !== null && !inp.readOnly && !inp.disabled) {
+            inp.focus();
+            inp.select();
+            return { found: true, id: inp.id, method: 'fallback' };
+          }
+        }
       }
     }
     return { found: false };
   });
 
-  if (clicked.found) {
-    logger.info('Click en "Fecha Actual" realizado', { text: clicked.text });
-    await waitMs(2000);
-  } else {
-    logger.warn('Opción "Fecha Actual" no encontrada');
+  if (!found.found) {
+    logger.warn('No se encontró campo de sucursal en modal de edición');
+    return { ok: false, error: 'edit-branch-field-not-found' };
   }
+  logger.info('Campo de sucursal encontrado', { id: found.id });
 
-  // 4) Enter para Guardar
+  // 2) Doble-click para seleccionar todo el contenido
+  const sel = `#${found.id.replace(/:/g, '\\:')}`;
+  await page.click(sel, { clickCount: 2 });
+  await waitMs(500);
+
+  // 3) Escribir la sucursal destino
+  await page.keyboard.press('Backspace');
+  await waitMs(300);
+  await page.type(sel, String(branchCode).trim(), { delay: 100 });
+  await waitMs(1000);
+
+  // 4) Enter para resolver la sucursal
+  logger.info('Enter para resolver sucursal');
   await page.keyboard.press('Enter');
-  await waitMs(3000);
-  logger.info('Enter presionado (Guardar)');
+  await waitMs(4000);
 
-  // 5) Cerrar el modal de edición con la X de "Horarios y sucursales asignadas a la persona"
-  const closed = await page.evaluate(() => {
-    // Buscar el título que contiene "Horarios y sucursales"
-    const titles = document.querySelectorAll('.ui-dialog-title');
-    for (const title of titles) {
-      if (title.textContent.includes('Horarios') || title.textContent.includes('sucursales')) {
-        const dialog = title.closest('.ui-dialog');
-        if (dialog) {
-          const closeBtn = dialog.querySelector('.ui-dialog-titlebar-close');
-          if (closeBtn && closeBtn.offsetParent !== null) {
-            closeBtn.click();
-            return { found: true, title: title.textContent.trim() };
-          }
-        }
+  // 5) Click en Guardar
+  logger.info('Click en Guardar');
+  const saveClicked = await page.evaluate(() => {
+    // Buscar botón Guardar en el diálogo de edición
+    const selectors = [
+      '#formEditarHorario\\:guardar',
+      '#formEditarHorario button[id*="guardar"]',
+      '#formEditarHorario button[id*="Guardar"]',
+    ];
+    for (const sel of selectors) {
+      const btn = document.querySelector(sel);
+      if (btn && btn.offsetParent !== null) {
+        btn.click();
+        return true;
       }
     }
-    // Fallback: cerrar cualquier diálogo visible
+    // Fallback: cualquier botón "Guardar" visible
+    const buttons = document.querySelectorAll('button');
+    for (const btn of buttons) {
+      if (btn.textContent.trim().toLowerCase() === 'guardar' && btn.offsetParent !== null) {
+        btn.click();
+        return true;
+      }
+    }
+    return false;
+  });
+
+  if (saveClicked) {
+    logger.info('Click en Guardar realizado');
+  } else {
+    logger.warn('No se encontró botón Guardar, intentando con Enter');
+    await page.keyboard.press('Enter');
+  }
+  await waitMs(5000);
+
+  // 6) Cerrar el modal con la X
+  logger.info('Cerrando modal de edición');
+  const closed = await page.evaluate(() => {
     const dialogs = document.querySelectorAll('.ui-dialog');
     for (const dialog of dialogs) {
       if (dialog.style.display === 'none') continue;
       const closeBtn = dialog.querySelector('.ui-dialog-titlebar-close');
       if (closeBtn && closeBtn.offsetParent !== null) {
         closeBtn.click();
-        return { found: true, title: 'fallback' };
+        return { found: true };
       }
     }
     return { found: false };
@@ -258,7 +300,7 @@ async function setEndDateToday(page) {
 
   if (closed.found) {
     logger.info('Modal de edición cerrado');
-    await waitMs(5000); // Esperar a que la página se recargue completamente
+    await waitMs(3000);
   } else {
     logger.warn('No se encontró botón de cerrar modal');
   }
@@ -267,12 +309,13 @@ async function setEndDateToday(page) {
 }
 
 /**
- * Cierra el horario activo (sin fecha final).
- * Flujo: filtrar por null en Fecha final → click lápiz → calendario → Fecha Actual → Guardar.
+ * Cierra el horario activo y lo edita con la sucursal destino.
+ * Flujo: filtrar por null en Fecha final → click lápiz → editar sucursal → Guardar → cerrar X.
  * @param {import('puppeteer').Page} page
+ * @param {string} branchCode  Código de la sucursal destino.
  * @returns {Promise<{ok:boolean, error?:string}>}
  */
-async function closeCurrentShift(page) {
+async function closeCurrentShift(page, branchCode) {
   // 1) Filtrar por Fecha final = null (registros activos)
   const filtered = await filterByActiveShift(page);
   if (!filtered.filtered) {
@@ -288,10 +331,10 @@ async function closeCurrentShift(page) {
     return { ok: false, error: editClicked.error };
   }
 
-  // 3) Calendario → Fecha Actual → Guardar
-  const endDateSet = await setEndDateToday(page);
-  if (!endDateSet.ok) {
-    return { ok: false, error: endDateSet.error };
+  // 3) Editar sucursal destino → Guardar → cerrar X
+  const edited = await editShiftBranch(page, branchCode);
+  if (!edited.ok) {
+    return { ok: false, error: edited.error };
   }
 
   return { ok: true };
@@ -688,7 +731,7 @@ module.exports = {
   searchPerson,
   filterByActiveShift,
   clickEditIcon,
-  setEndDateToday,
+  editShiftBranch,
   closeCurrentShift,
   addNewShift,
   isActiveHorario,

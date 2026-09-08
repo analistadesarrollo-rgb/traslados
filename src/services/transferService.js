@@ -167,7 +167,6 @@ function buildSuccessReply(transfer) {
     '✅ Traslado realizado correctamente.',
     '',
     `Colocador: ${transfer.document}`,
-    `Sucursal anterior: ${transfer.source_branch || '?'}`,
     `Sucursal nueva: ${transfer.destination_branch || '?'}`,
     `Hora: ${dateStr}`,
   ].join('\n');

@@ -295,7 +295,7 @@ La **idempotencia** se garantiza por `message_id` de WhatsApp: si llega un coman
 
 ## Panel administrativo
 
-Abierto en `http://localhost:3000/` (requiere `ADMIN_USER`/`ADMIN_PASSWORD` si se configuran).
+Con Docker, abierto en `http://localhost:8080/` (requiere `ADMIN_USER`/`ADMIN_PASSWORD` si se configuran). Define `HTTP_PORT` en `.env` para utilizar otro puerto del host. Sin Docker, usa `http://localhost:3000/`.
 
 - Resumen del estado de la cola y conteos por estado.
 - Historial de traslados (navegable por estado/sucursal).

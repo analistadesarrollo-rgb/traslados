@@ -50,7 +50,13 @@ async function createClient() {
     dataPath: config.whatsapp.sessionDir,
   });
 
-  const puppeteerOpts = {};
+  const puppeteerOpts = {
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+    ],
+  };
   const browserPath = config.whatsapp.browserPath || config.automation.chromePath;
   if (browserPath && fs.existsSync(browserPath)) {
     puppeteerOpts.executablePath = browserPath;

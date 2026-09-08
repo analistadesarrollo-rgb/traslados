@@ -10,8 +10,8 @@ pipeline {
     stages {
         stage('Copy .env files') {
             steps {
-                withCredentials([string(credentialsId: 'ENV_TRANSFER_BOT', variable: 'ENV_TRANSFER_BOT')]) {
-                    writeFile file: '.env', text: env.ENV_TRANSFER_BOT
+                withCredentials([file(credentialsId: 'ENV_TRANSFER_BOT', variable: 'ENV_TRANSFER_BOT_FILE')]) {
+                    sh 'cp "$ENV_TRANSFER_BOT_FILE" .env'
                 }
             }
         }

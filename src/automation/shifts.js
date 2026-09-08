@@ -258,7 +258,7 @@ async function setEndDateToday(page) {
 
   if (closed.found) {
     logger.info('Modal de edición cerrado');
-    await waitMs(2000);
+    await waitMs(5000); // Esperar a que la página se recargue completamente
   } else {
     logger.warn('No se encontró botón de cerrar modal');
   }
@@ -299,108 +299,296 @@ async function closeCurrentShift(page) {
 
 /**
  * Abre el modal de nuevo horario y lo llena con la sucursal destino.
- * Flujo: click "+ Agregar" → escribir sucursal + Enter →
- *   flecha abajo (TODO EL DIA) → Tab → flecha abajo (Normal) →
- *   Tab Tab Enter (fecha inicio) → Tab Tab Enter (Guardar).
- * @param {import('puppeteer').Page} page
- * @param {string} branchCode  Código de la sucursal destino
- * @returns {Promise<{ok:boolean, error?:string}>}
+ * Flujo exacto:
+ *   1) Click "+ Agregar"
+ *   2) Escribir sucursal + Enter
+ *   3) Esperar
+ *   4) Down (TODO EL DIA)
+ *   5) Tab → Down (Normal)
+ *   6) Tab Tab → Enter (calendario fecha inicio)
+ *   7) Click "Fecha Actual"
+ *   8) Enter (Guardar)
+ *   9) Cerrar modal con X
  */
 async function addNewShift(page, branchCode) {
-  requireConfigured(selectors.SHIFT_SELECTORS, 'selectors.SHIFT_SELECTORS');
   requireConfigured(selectors.SHIFT_FORM_SELECTORS, 'selectors.SHIFT_FORM_SELECTORS');
   const F = selectors.SHIFT_FORM_SELECTORS;
   const S = selectors.SHIFT_SELECTORS;
 
   // 1) Click en botón "+ Agregar"
-  logger.info('Abriendo modal de nuevo horario');
+  logger.info('Paso 1: Abriendo modal de nuevo horario');
+  await waitMs(3000);
+
+  // DIAGNÓSTICO: buscar todos los botones visibles
+  const diagButtons = await page.evaluate(() => {
+    const buttons = document.querySelectorAll('button, a[role="button"], span.ui-button');
+    const results = [];
+    for (const btn of buttons) {
+      if (btn.offsetParent !== null) {
+        results.push({
+          id: btn.id,
+          text: btn.textContent.trim().substring(0, 50),
+          className: btn.className.substring(0, 80),
+          tag: btn.tagName,
+        });
+      }
+    }
+    return results;
+  });
+  logger.info('DIAGNÓSTICO BOTONES VISIBLES', { buttons: JSON.stringify(diagButtons) });
+
+  // Intentar con el selector configurado
+  let clicked = false;
   if (S.newShiftButton && !String(S.newShiftButton).includes('{{')) {
-    await page.waitForSelector(S.newShiftButton, { timeout: config.automation.timeoutMs, visible: true });
-    await waitMs(500);
-    await page.click(S.newShiftButton);
+    try {
+      await page.waitForSelector(S.newShiftButton, { timeout: 5000, visible: true });
+      await page.click(S.newShiftButton);
+      clicked = true;
+      logger.info('Click en botón Agregar (selector configurado)', { selector: S.newShiftButton });
+    } catch (e) {
+      logger.warn('Selector configurado no funcionó', { error: e.message });
+    }
   }
-  await waitMs(2000);
+
+  // Fallback: buscar botón por texto "+ Agregar" o "Agregar"
+  if (!clicked) {
+    clicked = await page.evaluate(() => {
+      const buttons = document.querySelectorAll('button, a[role="button"], span');
+      for (const btn of buttons) {
+        const text = btn.textContent.trim().toLowerCase();
+        if ((text.includes('agregar') || text.includes('+')) && btn.offsetParent !== null) {
+          btn.click();
+          return true;
+        }
+      }
+      return false;
+    });
+    if (clicked) {
+      logger.info('Click en botón Agregar (búsqueda por texto)');
+    }
+  }
+
+  if (!clicked) {
+    logger.warn('No se encontró botón Agregar');
+    return { ok: false, error: 'add-button-not-found' };
+  }
+
+  await waitMs(4000);
 
   // Esperar a que abra el modal
-  const modalVisible = await page.waitForSelector('.ui-dialog:visible', { timeout: 8000 })
+  const modalVisible = await page.waitForSelector('.ui-dialog:visible', { timeout: 10000 })
     .then(() => true).catch(() => false);
   if (!modalVisible) {
     logger.warn('No se abrió modal de nuevo horario');
     return { ok: false, error: 'add-modal-not-found' };
   }
-  await waitMs(1000);
-
-  // 2) Escribir sucursal destino + Enter
-  logger.info('Escribiendo sucursal destino', { branchCode });
-  if (F.branchField && !String(F.branchField).includes('{{')) {
-    await page.waitForSelector(F.branchField, { timeout: 5000, visible: true });
-    await page.click(F.branchField, { clickCount: 3 });
-    await waitMs(500);
-    await page.type(F.branchField, String(branchCode).trim(), { delay: 80 });
-    await waitMs(1000);
-    await page.keyboard.press('Enter');
-    await waitMs(3000);
-    await settle(page, 3000);
-
-    // Verificar que la sucursal se resolvió
-    if (F.branchNameReadonly && !String(F.branchNameReadonly).includes('{{')) {
-      const name = await page.$eval(F.branchNameReadonly, (el) => el.value || '').catch(() => '');
-      if (!name.trim()) {
-        logger.warn('La sucursal no resolvió a un nombre', { branchCode });
-        return { ok: false, error: 'branch-not-found' };
-      }
-      logger.info('Sucursal resuelta', { branchCode, name });
-    }
-  } else {
-    return { ok: false, error: 'branch-field-not-configured' };
-  }
-
-  // 3) Flecha abajo para Tipo horario (seleccionar "TODO EL DIA")
-  logger.info('Seleccionando Tipo horario: TODO EL DIA');
-  await page.keyboard.press('ArrowDown');
-  await waitMs(1500);
-
-  // 4) Tab para ir a Tipo día
-  await page.keyboard.press('Tab');
-  await waitMs(1000);
-
-  // 5) Flecha abajo para Tipo día (seleccionar "Normal")
-  logger.info('Seleccionando Tipo día: Normal');
-  await page.keyboard.press('ArrowDown');
-  await waitMs(1500);
-
-  // 6) Tab Tab Enter para Fecha inicio (fecha actual)
-  await page.keyboard.press('Tab');
-  await waitMs(1000);
-  await page.keyboard.press('Tab');
-  await waitMs(1000);
-  logger.info('Presionando Enter para Fecha inicio');
-  await page.keyboard.press('Enter');
   await waitMs(2000);
 
-  // 7) Tab Tab Enter para Guardar
-  await page.keyboard.press('Tab');
-  await waitMs(1000);
-  await page.keyboard.press('Tab');
-  await waitMs(1000);
-  logger.info('Presionando Enter para Guardar');
+  // DIAGNÓSTICO: capturar todos los inputs visibles del modal
+  const diagInputs = await page.evaluate(() => {
+    const dialogs = document.querySelectorAll('.ui-dialog');
+    const results = [];
+    for (const dialog of dialogs) {
+      if (dialog.style.display === 'none') continue;
+      const title = dialog.querySelector('.ui-dialog-title');
+      const inputs = dialog.querySelectorAll('input');
+      for (const inp of inputs) {
+        results.push({
+          dialogTitle: title ? title.textContent.trim() : '',
+          id: inp.id,
+          type: inp.type,
+          value: inp.value,
+          readOnly: inp.readOnly,
+          disabled: inp.disabled,
+          visible: inp.offsetParent !== null,
+          placeholder: inp.placeholder || '',
+        });
+      }
+    }
+    return results;
+  });
+  logger.info('DIAGNÓSTICO INPUTS EN MODAL', { inputs: JSON.stringify(diagInputs) });
+
+  // 2) Escribir sucursal destino + Enter
+  logger.info('Paso 2: Buscando campo de sucursal en modal');
+  
+  // Intentar con el selector configurado primero
+  let useSelector = null;
+  if (F.branchField && !String(F.branchField).includes('{{')) {
+    const testEl = await page.$(F.branchField);
+    if (testEl) {
+      useSelector = F.branchField;
+      logger.info('Usando selector configurado', { selector: useSelector });
+    }
+  }
+
+  // Si no funcionó, buscar por ID parcial
+  if (!useSelector) {
+    useSelector = await page.evaluate(() => {
+      // Buscar input que contenga "txtSucursal" o "Sucursal" en el ID
+      const inputs = document.querySelectorAll('input[id*="txtSucursal"], input[id*="Sucursal"]');
+      for (const inp of inputs) {
+        if (inp.offsetParent !== null && !inp.readOnly && !inp.disabled) {
+          return inp.id;
+        }
+      }
+      return null;
+    });
+    if (useSelector) {
+      useSelector = `#${useSelector.replace(/:/g, '\\:')}`;
+      logger.info('Encontrado por ID parcial', { selector: useSelector });
+    }
+  }
+
+  // Último fallback: buscar el primer input editable del modal
+  if (!useSelector) {
+    const branchInputId = await page.evaluate(() => {
+      const dialogs = document.querySelectorAll('.ui-dialog');
+      for (const dialog of dialogs) {
+        if (dialog.style.display === 'none') continue;
+        const inputs = dialog.querySelectorAll('input[type="text"], input:not([type="hidden"]):not([type="checkbox"])');
+        for (const inp of inputs) {
+          if (inp.offsetParent !== null && !inp.readOnly && !inp.disabled) {
+            return inp.id;
+          }
+        }
+      }
+      return null;
+    });
+    if (branchInputId) {
+      useSelector = `#${branchInputId.replace(/:/g, '\\:')}`;
+      logger.info('Encontrado primer input visible', { selector: useSelector });
+    }
+  }
+
+  if (useSelector) {
+    await page.waitForSelector(useSelector, { timeout: 5000, visible: true });
+    await page.click(useSelector, { clickCount: 3 });
+    await waitMs(800);
+    await page.type(useSelector, String(branchCode).trim(), { delay: 100 });
+    await waitMs(1500);
+  } else {
+    logger.warn('No se encontró campo de sucursal en el modal');
+    return { ok: false, error: 'branch-field-not-found' };
+  }
+
+  // 3) Enter para resolver la sucursal
+  logger.info('Paso 3: Enter para resolver sucursal');
   await page.keyboard.press('Enter');
   await waitMs(4000);
 
-  // 7b) Manejar diálogo de cierre de horarios anteriores (si aparece)
+  // Verificar que la sucursal se resolvió (buscar campo de nombre de sucursal)
+  const resolvedName = await page.evaluate(() => {
+    const dialogs = document.querySelectorAll('.ui-dialog');
+    for (const dialog of dialogs) {
+      if (dialog.style.display === 'none') continue;
+      // Buscar inputs de solo lectura o con nombre de sucursal
+      const inputs = dialog.querySelectorAll('input[readonly], input[id*="Nombre"], input[id*="nombre"]');
+      for (const inp of inputs) {
+        if (inp.offsetParent !== null && inp.value && inp.value.trim()) {
+          return inp.value.trim();
+        }
+      }
+    }
+    return null;
+  });
+
+  if (resolvedName) {
+    logger.info('Sucursal resuelta', { branchCode, name: resolvedName });
+  } else {
+    logger.warn('No se pudo verificar el nombre de la sucursal', { branchCode });
+  }
+
+  // 4) Flecha abajo para Tipo horario → TODO EL DIA
+  logger.info('Paso 4: Down para Tipo horario');
+  await page.keyboard.press('ArrowDown');
+  await waitMs(2000);
+
+  // 5) Tab para ir a Tipo día
+  logger.info('Paso 5: Tab para Tipo día');
+  await page.keyboard.press('Tab');
+  await waitMs(1500);
+
+  // 6) Flecha abajo para Tipo día → Normal
+  logger.info('Paso 6: Down para Tipo día');
+  await page.keyboard.press('ArrowDown');
+  await waitMs(2000);
+
+  // 7) Tab Tab para llegar al calendario de Fecha inicio
+  logger.info('Paso 7: Tab Tab para calendario fecha inicio');
+  await page.keyboard.press('Tab');
+  await waitMs(1500);
+  await page.keyboard.press('Tab');
+  await waitMs(1500);
+
+  // 8) Enter para abrir calendario de Fecha inicio
+  logger.info('Paso 8: Enter para abrir calendario');
+  await page.keyboard.press('Enter');
+  await waitMs(3000);
+
+  // 9) Click en "Fecha Actual"
+  logger.info('Paso 9: Buscando Fecha Actual');
+  const clickedFecha = await page.evaluate(() => {
+    const allElements = document.querySelectorAll('span, a, div, button, td');
+    for (const el of allElements) {
+      const text = el.textContent.trim().toLowerCase();
+      if ((text === 'fecha actual' || text === 'fecha de hoy') && el.offsetParent !== null) {
+        el.click();
+        return { found: true };
+      }
+    }
+    return { found: false };
+  });
+
+  if (clickedFecha.found) {
+    logger.info('Click en "Fecha Actual" realizado');
+    await waitMs(2000);
+  } else {
+    logger.warn('Opción "Fecha Actual" no encontrada');
+  }
+
+  // 10) Enter para Guardar
+  logger.info('Paso 10: Enter para Guardar');
+  await page.keyboard.press('Enter');
+  await waitMs(5000);
+
+  // 11) Manejar diálogo de cierre de horarios anteriores (si aparece)
   if (S.confirmClosePrevYes && !String(S.confirmClosePrevYes).includes('{{')) {
     try {
       await page.waitForSelector(S.confirmClosePrevYes, { timeout: 8000, visible: true });
-      await waitMs(1000);
+      await waitMs(1500);
       logger.info('Diálogo de cierre detectado, confirmando');
       await page.click(S.confirmClosePrevYes);
-      await waitMs(3000);
+      await waitMs(4000);
     } catch (_) {
       logger.info('No apareció diálogo de cierre');
     }
   }
 
-  await settle(page, 8000);
+  // 12) Cerrar el modal con la X
+  logger.info('Paso 12: Cerrando modal');
+  const closed = await page.evaluate(() => {
+    const dialogs = document.querySelectorAll('.ui-dialog');
+    for (const dialog of dialogs) {
+      if (dialog.style.display === 'none') continue;
+      const title = dialog.querySelector('.ui-dialog-title');
+      const closeBtn = dialog.querySelector('.ui-dialog-titlebar-close');
+      if (closeBtn && closeBtn.offsetParent !== null) {
+        closeBtn.click();
+        return { found: true, title: title ? title.textContent.trim() : '' };
+      }
+    }
+    return { found: false };
+  });
+
+  if (closed.found) {
+    logger.info('Modal cerrado', { title: closed.title });
+    await waitMs(2000);
+  } else {
+    logger.warn('No se encontró modal para cerrar');
+  }
+
+  await settle(page, 5000);
   logger.info('Nuevo horario creado');
   return { ok: true };
 }

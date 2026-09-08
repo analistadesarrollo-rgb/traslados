@@ -727,6 +727,70 @@ function isActiveHorario(cells) {
   return !has(endDate);
 }
 
+/**
+ * Verifica que el traslado se realizó correctamente.
+ * Recarga la página, busca la persona y verifica que el horario activo
+ * tenga la sucursal destino.
+ * @param {import('puppeteer').Page} page
+ * @param {string} document  Documento de la persona.
+ * @param {string} expectedBranch  Código de sucursal destino esperado.
+ * @returns {Promise<{verified:boolean, actualBranch?:string, error?:string}>}
+ */
+async function verifyTransfer(page, document, expectedBranch) {
+  logger.info('Verificando traslado', { document, expectedBranch });
+
+  // 1) Recargar la página
+  logger.info('Recargando página');
+  await page.reload({ waitUntil: 'networkidle2', timeout: 30000 });
+  await waitMs(3000);
+
+  // 2) Buscar persona por documento
+  logger.info('Buscando persona para verificación');
+  const persona = await searchPerson(page, document);
+  if (!persona.found) {
+    logger.warn('No se pudo encontrar persona para verificación');
+    return { verified: false, error: 'person-not-found' };
+  }
+  await waitMs(1000);
+
+  // 3) Filtrar por Fecha final = null (horario activo)
+  const filtered = await filterByActiveShift(page);
+  if (!filtered.filtered || filtered.rowCount === 0) {
+    logger.warn('No se encontró horario activo para verificación');
+    return { verified: false, error: 'no-active-shift' };
+  }
+
+  // 4) Leer la sucursal de la primera fila
+  const actualBranch = await page.evaluate(() => {
+    const container = document.querySelector('#formHorariopersonas\\:dtHorariopersona_data');
+    if (!container) return null;
+    const firstRow = container.querySelector('tr');
+    if (!firstRow) return null;
+    const cells = firstRow.querySelectorAll('td');
+    // La sucursal está en la columna 1 (según shiftCells.branch)
+    if (cells.length > 1) {
+      return cells[1].textContent.trim();
+    }
+    return null;
+  });
+
+  if (!actualBranch) {
+    logger.warn('No se pudo leer la sucursal del horario activo');
+    return { verified: false, error: 'could-not-read-branch' };
+  }
+
+  logger.info('Sucursal verificada', { actualBranch, expectedBranch });
+
+  // 5) Comparar
+  if (actualBranch === String(expectedBranch).trim()) {
+    logger.info('Verificación exitosa: sucursal coincide');
+    return { verified: true, actualBranch };
+  } else {
+    logger.warn('Verificación fallida: sucursal no coincide', { actualBranch, expectedBranch });
+    return { verified: false, actualBranch, error: 'branch-mismatch' };
+  }
+}
+
 module.exports = {
   searchPerson,
   filterByActiveShift,
@@ -734,6 +798,7 @@ module.exports = {
   editShiftBranch,
   closeCurrentShift,
   addNewShift,
+  verifyTransfer,
   isActiveHorario,
   fmtDate,
 };

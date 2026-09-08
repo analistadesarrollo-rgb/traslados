@@ -103,11 +103,20 @@ async function executeTransfer({ document, branch, requestId = null }) {
     }
     log('Horario editado correctamente');
 
-    // 4) Éxito
+    // 4) Verificar que el traslado se realizó correctamente
+    log('Verificando traslado');
+    const verified = await shifts.verifyTransfer(page, document, branch);
+    if (!verified.verified) {
+      logWarn('Verificación fallida', { error: verified.error, actualBranch: verified.actualBranch });
+      throw new errors.CreateShiftError(`La verificación falló: ${verified.error}. Requiere revisión manual.`);
+    }
+    log('Verificación exitosa', { actualBranch: verified.actualBranch });
+
+    // 5) Éxito
     log('Traslado completado exitosamente');
     return {
       ok: true,
-      sourceBranch: branch,
+      sourceBranch: verified.actualBranch,
       destinationBranch: branch,
       at: new Date(),
     };

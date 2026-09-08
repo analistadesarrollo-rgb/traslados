@@ -610,9 +610,22 @@ async function addNewShift(page, branchCode) {
     logger.warn('Opción "Fecha Actual" no encontrada');
   }
 
-  // 10) Enter para Guardar
-  logger.info('Paso 10: Enter para Guardar');
-  await page.keyboard.press('Enter');
+  // 10) Click en botón Guardar
+  logger.info('Paso 10: Click en Guardar');
+  const saveClicked = await page.evaluate(() => {
+    const btn = document.querySelector('#formPopupNueva\\:guardar2');
+    if (btn && btn.offsetParent !== null) {
+      btn.click();
+      return true;
+    }
+    return false;
+  });
+  if (saveClicked) {
+    logger.info('Click en Guardar realizado');
+  } else {
+    logger.warn('No se encontró botón Guardar, intentando con Enter');
+    await page.keyboard.press('Enter');
+  }
   await waitMs(5000);
 
   // 11) Manejar diálogo de cierre de horarios anteriores (si aparece)

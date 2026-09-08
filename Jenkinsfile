@@ -16,12 +16,6 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
-            steps {
-                sh 'npm ci --omit=dev'
-            }
-        }
-
         stage('Docker Compose Down') {
             steps {
                 sh 'docker compose down --remove-orphans || true'

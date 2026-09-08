@@ -295,7 +295,7 @@ La **idempotencia** se garantiza por `message_id` de WhatsApp: si llega un coman
 
 ## Panel administrativo
 
-Con Docker, Nginx queda disponible en la red Docker externa `red-gane-int`, para que el proxy compartido del servidor lo publique. Sin Docker, usa `http://localhost:3000/`.
+Con Docker, Nginx queda disponible en la red Docker externa `red-gane-int`, para que el proxy compartido del servidor lo publique. Configura el proxy público hacia `transfer-bot-nginx:80`. Sin Docker, usa `http://localhost:3000/`.
 
 - Resumen del estado de la cola y conteos por estado.
 - Historial de traslados (navegable por estado/sucursal).

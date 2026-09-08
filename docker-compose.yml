@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     container_name: transfer-bot
     restart: always
+    env_file:
+      - .env
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs

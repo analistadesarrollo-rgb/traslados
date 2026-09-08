@@ -314,6 +314,7 @@ async function addNewShift(page, branchCode) {
   requireConfigured(selectors.SHIFT_FORM_SELECTORS, 'selectors.SHIFT_FORM_SELECTORS');
   const F = selectors.SHIFT_FORM_SELECTORS;
   const S = selectors.SHIFT_SELECTORS;
+  const { captureEvidence } = require('./browser');
 
   // 1) Click en botón "+ Agregar"
   logger.info('Paso 1: Abriendo modal de nuevo horario');
@@ -375,16 +376,37 @@ async function addNewShift(page, branchCode) {
 
   await waitMs(4000);
 
-  // Esperar a que abra el modal
-  const modalVisible = await page.waitForSelector('.ui-dialog:visible', { timeout: 10000 })
-    .then(() => true).catch(() => false);
-  if (!modalVisible) {
+  // Esperar a que abra el modal - usar formPopupNueva directamente
+  logger.info('Esperando apertura del modal de nuevo horario');
+  let modalOpen = false;
+  try {
+    await page.waitForSelector('#formPopupNueva', { visible: true, timeout: 10000 });
+    modalOpen = true;
+  } catch (_) {
+    // Fallback: buscar cualquier .ui-dialog visible
+    try {
+      await page.waitForSelector('.ui-dialog', { visible: true, timeout: 5000 });
+      modalOpen = true;
+    } catch (_) {
+      // Fallback: buscar botones de formPopupNueva visibles
+      modalOpen = await page.evaluate(() => {
+        const btn = document.querySelector('#formPopupNueva\\:guardar2');
+        return btn && btn.offsetParent !== null;
+      });
+    }
+  }
+  if (!modalOpen) {
     logger.warn('No se abrió modal de nuevo horario');
+    await captureEvidence(page, 'MODAL_NOT_OPEN');
     return { ok: false, error: 'add-modal-not-found' };
   }
+  logger.info('Modal de nuevo horario detectado');
   await waitMs(2000);
 
-  // DIAGNÓSTICO: capturar todos los inputs visibles del modal
+  // CAPTURAR ESTADO DEL MODAL
+  await captureEvidence(page, 'MODAL_ABIERTO');
+
+  // DIAGNÓSTICO: capturar todos los inputs del modal con info de posición
   const diagInputs = await page.evaluate(() => {
     const dialogs = document.querySelectorAll('.ui-dialog');
     const results = [];
@@ -393,15 +415,20 @@ async function addNewShift(page, branchCode) {
       const title = dialog.querySelector('.ui-dialog-title');
       const inputs = dialog.querySelectorAll('input');
       for (const inp of inputs) {
+        const rect = inp.getBoundingClientRect();
         results.push({
           dialogTitle: title ? title.textContent.trim() : '',
           id: inp.id,
+          name: inp.name,
           type: inp.type,
           value: inp.value,
           readOnly: inp.readOnly,
           disabled: inp.disabled,
           visible: inp.offsetParent !== null,
-          placeholder: inp.placeholder || '',
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+          x: Math.round(rect.x),
+          y: Math.round(rect.y),
         });
       }
     }
@@ -411,8 +438,8 @@ async function addNewShift(page, branchCode) {
 
   // 2) Escribir sucursal destino + Enter
   logger.info('Paso 2: Buscando campo de sucursal en modal');
-  
-  // Intentar con el selector configurado primero
+
+  // Estrategia 1: selector configurado
   let useSelector = null;
   if (F.branchField && !String(F.branchField).includes('{{')) {
     const testEl = await page.$(F.branchField);
@@ -422,10 +449,9 @@ async function addNewShift(page, branchCode) {
     }
   }
 
-  // Si no funcionó, buscar por ID parcial
+  // Estrategia 2: buscar por ID que contenga "Sucursal" y sea input editable
   if (!useSelector) {
     useSelector = await page.evaluate(() => {
-      // Buscar input que contenga "txtSucursal" o "Sucursal" en el ID
       const inputs = document.querySelectorAll('input[id*="txtSucursal"], input[id*="Sucursal"]');
       for (const inp of inputs) {
         if (inp.offsetParent !== null && !inp.readOnly && !inp.disabled) {
@@ -440,24 +466,58 @@ async function addNewShift(page, branchCode) {
     }
   }
 
-  // Último fallback: buscar el primer input editable del modal
+  // Estrategia 3: buscar el input más pequeño visible (el de código suele ser ~70-120px)
   if (!useSelector) {
-    const branchInputId = await page.evaluate(() => {
+    useSelector = await page.evaluate(() => {
       const dialogs = document.querySelectorAll('.ui-dialog');
       for (const dialog of dialogs) {
         if (dialog.style.display === 'none') continue;
-        const inputs = dialog.querySelectorAll('input[type="text"], input:not([type="hidden"]):not([type="checkbox"])');
+        const inputs = dialog.querySelectorAll('input');
+        let best = null;
+        let bestWidth = Infinity;
         for (const inp of inputs) {
-          if (inp.offsetParent !== null && !inp.readOnly && !inp.disabled) {
-            return inp.id;
+          if (inp.offsetParent === null || inp.readOnly || inp.disabled || inp.type === 'hidden') continue;
+          const rect = inp.getBoundingClientRect();
+          if (rect.width >= 30 && rect.width < 200 && rect.width < bestWidth) {
+            best = inp;
+            bestWidth = rect.width;
+          }
+        }
+        if (best) return best.id;
+      }
+      return null;
+    });
+    if (useSelector) {
+      useSelector = `#${useSelector.replace(/:/g, '\\:')}`;
+      logger.info('Encontrado por tamaño (input más pequeño)', { selector: useSelector });
+    }
+  }
+
+  // Estrategia 4: buscar por label "Sucursal" y tomar el input más cercano
+  if (!useSelector) {
+    useSelector = await page.evaluate(() => {
+      const dialogs = document.querySelectorAll('.ui-dialog');
+      for (const dialog of dialogs) {
+        if (dialog.style.display === 'none') continue;
+        const allEls = dialog.querySelectorAll('label, span, div, td');
+        for (const el of allEls) {
+          const text = el.textContent.trim();
+          if (!text.includes('Sucursal') || !text.includes('*')) continue;
+          const parent = el.closest('tr, div, fieldset') || el.parentElement;
+          if (!parent) continue;
+          const inputs = parent.querySelectorAll('input');
+          for (const inp of inputs) {
+            if (inp.offsetParent !== null && !inp.readOnly && !inp.disabled && inp.type !== 'hidden') {
+              return inp.id;
+            }
           }
         }
       }
       return null;
     });
-    if (branchInputId) {
-      useSelector = `#${branchInputId.replace(/:/g, '\\:')}`;
-      logger.info('Encontrado primer input visible', { selector: useSelector });
+    if (useSelector) {
+      useSelector = `#${useSelector.replace(/:/g, '\\:')}`;
+      logger.info('Encontrado por label "Sucursal"', { selector: useSelector });
     }
   }
 
@@ -467,8 +527,10 @@ async function addNewShift(page, branchCode) {
     await waitMs(800);
     await page.type(useSelector, String(branchCode).trim(), { delay: 100 });
     await waitMs(1500);
+    await captureEvidence(page, 'BRANCH_CODE_TYPED');
   } else {
     logger.warn('No se encontró campo de sucursal en el modal');
+    await captureEvidence(page, 'BRANCH_FIELD_NOT_FOUND');
     return { ok: false, error: 'branch-field-not-found' };
   }
 
@@ -476,6 +538,7 @@ async function addNewShift(page, branchCode) {
   logger.info('Paso 3: Enter para resolver sucursal');
   await page.keyboard.press('Enter');
   await waitMs(4000);
+  await captureEvidence(page, 'AFTER_ENTER_SUCURSAL');
 
   // Verificar que la sucursal se resolvió (buscar campo de nombre de sucursal)
   const resolvedName = await page.evaluate(() => {

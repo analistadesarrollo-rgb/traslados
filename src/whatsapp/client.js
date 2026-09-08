@@ -136,7 +136,13 @@ async function startWhatsApp(deps) {
     state.connected = false;
     state.lastDisconnectReason = reason;
     state.reconnectCount += 1;
-    logger.warn('Cliente de WhatsApp desconectado, se reintentará', { reason });
+    logger.warn('Cliente de WhatsApp desconectado, reintentando en 5s', { reason, reconnectCount: state.reconnectCount });
+    setTimeout(() => {
+      logger.info('Reintentando conexión de WhatsApp...');
+      waClient.initialize().catch((err) => {
+        logger.error('Error al reconectar WhatsApp', { error: err.message });
+      });
+    }, 5000);
   });
 
   waClient.on('message', (msg) => {

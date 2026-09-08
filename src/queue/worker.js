@@ -170,7 +170,7 @@ async function safeSend(sender, phone, text) {
       logger.warn('No hay sender de WhatsApp disponible, no se envió respuesta', { phone });
       return;
     }
-    if (sender.connected !== undefined && !sender.connected) {
+    if (typeof sender.connected === 'function' && !sender.connected()) {
       logger.warn('WhatsApp no conectado, respuesta pendiente no enviada', { phone });
       return;
     }

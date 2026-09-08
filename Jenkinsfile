@@ -11,7 +11,7 @@ pipeline {
         stage('Copy .env files') {
             steps {
                 withCredentials([file(credentialsId: 'ENV_TRANSFER_BOT', variable: 'ENV_TRANSFER_BOT_FILE')]) {
-                    sh 'cp "$ENV_TRANSFER_BOT_FILE" .env'
+                    sh 'rm -f .env && cp "$ENV_TRANSFER_BOT_FILE" .env'
                 }
             }
         }

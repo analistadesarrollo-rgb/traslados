@@ -36,7 +36,7 @@ pipeline {
 
         stage('Verify') {
             steps {
-                sh 'sleep 10 && curl -f http://localhost:3000/api/health || exit 1'
+                sh 'sleep 10 && curl -f http://localhost/api/health || exit 1'
             }
         }
     }

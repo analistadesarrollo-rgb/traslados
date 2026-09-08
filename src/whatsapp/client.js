@@ -22,6 +22,16 @@ const logger = require('../logger').child('whatsapp');
 let client = null;
 let qrHandler = null;
 
+function getProfileDir() {
+  return path.join(config.whatsapp.sessionDir, 'session-transfer-bot');
+}
+
+function clearInvalidSession(reason) {
+  logger.warn('Sesión de WhatsApp inválida; se generará un nuevo QR tras reiniciar', { reason });
+  fs.rmSync(getProfileDir(), { recursive: true, force: true });
+  process.exit(1);
+}
+
 /**
  * Configura un callback para recibir el QR como imagen/terminal.
  * @param {(qrDataUrl:string, terminal:string)=>void} handler
@@ -45,7 +55,7 @@ async function createClient() {
 
   fs.mkdirSync(config.whatsapp.sessionDir, { recursive: true });
 
-  const profileDir = path.join(config.whatsapp.sessionDir, 'session-transfer-bot');
+  const profileDir = getProfileDir();
   for (const file of ['SingletonCookie', 'SingletonLock', 'SingletonSocket']) {
     fs.rmSync(path.join(profileDir, file), { force: true });
   }
@@ -139,6 +149,10 @@ async function startWhatsApp(deps) {
     logger.info('WhatsApp autenticado');
   });
 
+  waClient.on('auth_failure', (message) => {
+    clearInvalidSession(message);
+  });
+
   waClient.on('ready', () => {
     state.connected = true;
     state.ready = true;
@@ -152,6 +166,10 @@ async function startWhatsApp(deps) {
     state.lastDisconnectReason = reason;
     state.reconnectCount += 1;
     logger.warn('Cliente de WhatsApp desconectado', { reason, reconnectCount: state.reconnectCount });
+    if (String(reason).toUpperCase().includes('LOGOUT')) {
+      clearInvalidSession(reason);
+      return;
+    }
     if (state.reconnectCount <= 3) {
       logger.info('Reintentando conexión en 5s...');
       setTimeout(() => {

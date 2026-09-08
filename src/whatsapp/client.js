@@ -45,6 +45,11 @@ async function createClient() {
 
   fs.mkdirSync(config.whatsapp.sessionDir, { recursive: true });
 
+  const profileDir = path.join(config.whatsapp.sessionDir, 'session-transfer-bot');
+  for (const file of ['SingletonCookie', 'SingletonLock', 'SingletonSocket']) {
+    fs.rmSync(path.join(profileDir, file), { force: true });
+  }
+
   const auth = new LocalAuth({
     clientId: 'transfer-bot',
     dataPath: config.whatsapp.sessionDir,

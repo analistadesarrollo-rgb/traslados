@@ -10,10 +10,8 @@ pipeline {
     stages {
         stage('Copy .env files') {
             steps {
-                script {
-                    // Lee las credenciales de Jenkins y escribe los archivos .env
-                    def envContent = credentials('ENV_TRANSFER_BOT')
-                    writeFile file: '.env', text: envContent
+                withCredentials([string(credentialsId: 'ENV_TRANSFER_BOT', variable: 'ENV_TRANSFER_BOT')]) {
+                    writeFile file: '.env', text: env.ENV_TRANSFER_BOT
                 }
             }
         }
@@ -26,7 +24,7 @@ pipeline {
 
         stage('Docker Compose Down') {
             steps {
-                sh 'docker-compose down --remove-orphans || true'
+                sh 'docker compose down --remove-orphans || true'
             }
         }
 
@@ -38,7 +36,7 @@ pipeline {
 
         stage('Docker Compose Up') {
             steps {
-                sh "docker-compose up -d --build"
+                sh 'docker compose up -d --build'
             }
         }
 
@@ -51,7 +49,7 @@ pipeline {
 
     post {
         failure {
-            sh 'docker-compose logs --tail=50'
+            sh 'docker compose logs --tail=50 || true'
         }
     }
 }

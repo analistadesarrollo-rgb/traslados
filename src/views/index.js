@@ -84,8 +84,10 @@ function renderDashboard() {
       </table>
     </div>
     <div class="section">
-      <h2>Errores recientes</h2>
-      <ul class="error-list" id="errors"><li>cargando...</li></ul>
+      <h2>QR de WhatsApp</h2>
+      <div id="qr-container" style="text-align:center;min-height:200px;display:flex;align-items:center;justify-content:center;">
+        <p class="muted">Esperando QR...</p>
+      </div>
     </div>
   </div>
 
@@ -108,6 +110,20 @@ function renderDashboard() {
       if(d.recentErrors && d.recentErrors.length){
         el.innerHTML = d.recentErrors.slice(0,8).map(e=>\`<li><span class="badge-p">\${e.level}</span> <span class="muted">\${(e.component||'').replace(/^whatsapp\\./,'')}</span> \${e.message}</li>\`).join('');
       } else el.innerHTML = '<li class="muted">Sin errores recientes</li>';
+
+      // QR
+      try{
+        const qrRes = await fetch('/api/qr');
+        if(qrRes.ok){
+          const qrData = await qrRes.json();
+          const container = document.getElementById('qr-container');
+          if(qrData.qr && qrData.qr.dataUrl){
+            container.innerHTML = '<img src="'+qrData.qr.dataUrl+'" style="max-width:300px;border:2px solid #333;border-radius:8px;" alt="QR WhatsApp"><p class="muted" style="margin-top:8px;">Escanea con WhatsApp Web</p>';
+          } else {
+            container.innerHTML = '<p class="muted">QR no disponible. WhatsApp puede estar conectado.</p>';
+          }
+        }
+      }catch(_){}
     }catch(e){ document.getElementById('wa-status').textContent = 'API no disponible: '+e.message; }
   }
   refresh(); setInterval(refresh, 5000);

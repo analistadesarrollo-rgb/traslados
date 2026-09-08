@@ -1,24 +1,7 @@
-# Dependencias
 node_modules/
-
-# Variables de entorno (nunca subir a Git)
-.env
-
-# Datos de sesión y persistencia
 data/
-*.sqlite
-*.sqlite3
-*.db
-
-# Directorios de trabajo
 logs/
 screenshots/
-
-# Archivos de sistema
-.DS_Store
-Thumbs.db
-*.log
-npm-debug.log*
-
-# Cobertura de pruebas
-coverage/
+.env
+*.sqlite
+*.db

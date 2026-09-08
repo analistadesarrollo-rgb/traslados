@@ -89,4 +89,12 @@ function historyDetail(req, res) {
   res.json({ transfer, logs });
 }
 
-module.exports = { dashboard, history, historyDetail, getStatusSnapshot };
+/**
+ * GET /api/qr -> último QR generado (dataURL + terminal)
+ */
+function qr(req, res) {
+  const lastQr = global.__lastQr || null;
+  res.json({ qr: lastQr });
+}
+
+module.exports = { dashboard, history, historyDetail, qr, getStatusSnapshot };

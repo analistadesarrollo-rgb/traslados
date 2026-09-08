@@ -1,27 +1,35 @@
+version: '3.8'
+
 services:
-  transfer-bot:
-    build: .
-    container_name: whatsapp-transfer-bot
-    restart: unless-stopped
-    # Red de host para poder alcanzar el sistema web interno (192.168.60.66:8090)
-    network_mode: host
-    environment:
-      - PORT=3000
-      - WEB_SYSTEM_URL=http://192.168.60.66:8090/BusinessNET-WEB/XHTML/azar/adminventa/horariopersonas.xhtml
-      - WEB_SYSTEM_USER=${WEB_SYSTEM_USER:-}
-      - WEB_SYSTEM_PASSWORD=${WEB_SYSTEM_PASSWORD:-}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
-      - AUTOMATION_HEADLESS=true      - LOG_LEVEL=info
-      - MODE=web,worker,whatsapp
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: transfer-bot
+    restart: always
+    ports:
+      - "3000:3000"
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
-      - ./screenshots:/app/screenshots
-    # En container estándar (sin host), la red Docker no alcanza 192.168.* ;
-    # si usas red default, cambia a network_mode: host en Linux,
-    # o configura un macvlan/red externa que alcance tu red.
-    cap_add:
-      - SYS_ADMIN
-    shm_size: '1gb'
-    security_opt:
-      - seccomp:unconfined
+    environment:
+      - TZ=America/Bogota
+    networks:
+      - red-gane-int
+
+  nginx:
+    image: nginx:stable-alpine3.19-slim
+    container_name: transfer-bot-nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    networks:
+      - red-gane-int
+
+networks:
+  red-gane-int:
+    external: true

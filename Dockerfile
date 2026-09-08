@@ -1,62 +1,36 @@
-# Dockerfile para WhatsApp Transfer Bot
-# Imagen: node:22 (incluye node:sqlite, estable para la aplicación)
 FROM node:22-slim
 
-# Dependencias para Chromium (necesarias para Pizza/con Puppeteer y WhatsApp)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     chromium \
     fonts-liberation \
+    libappindicator3-1 \
     libasound2 \
     libatk-bridge2.0-0 \
-    libcairo2 \
+    libatk1.0-0 \
     libcups2 \
     libdbus-1-3 \
-    libexpat1 \
-    libfontconfig1 \
-    libgbm1 \
-    libglib2.0-0 \
+    libgdk-pixbuf2.0-0 \
     libnspr4 \
     libnss3 \
-    libpango-1.0-0 \
-    libx11-6 \
-    libxcb1 \
+    libx11-xcb1 \
     libxcomposite1 \
     libxdamage1 \
-    libxfixes3 \
-    libxrender1 \
-    libxshmfence1 \
-    libxss1 \
-    libxtst6 \
-    ca-certificates \
-    tzdata \
-    curl \
+    libxrandr2 \
+    xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Directorio de trabajo
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
 WORKDIR /app
 
-# Copiar manifests e instalar dependencias (capa cacheable)
 COPY package*.json ./
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
-# Copiar el código fuente
-COPY src ./src
+COPY . .
 
-# Directorios de datos/sesiones/lestados
-RUN mkdir -p /app/data /app/logs /app/screenshots
+RUN mkdir -p data/wa-session data/media logs screenshots
 
-# Variable de entorno por defecto para el ejecutable de Chrome en la imagen
-ENV CHROME_PATH=/usr/bin/chromium
-ENV NODE_ENV=production
-
-# Exponer el puerto del panel admin
 EXPOSE 3000
 
-# Volumen para persistir la sesión de WhatsApp y la BD
-VOLUME ["/app/data", "/app/logs", "/app/screenshots"]
-
-# Salud: comprueba la API de health
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD curl -fsS http://localhost:3000/api/health || exit 1
-
-ENTRYPOINT ["node", "src/index.js"]
+CMD ["node", "src/index.js"]

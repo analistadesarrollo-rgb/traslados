@@ -28,6 +28,7 @@ const router = express.Router();
 router.get('/dashboard', requireAuth, controller.dashboard);
 router.get('/history', requireAuth, controller.history);
 router.get('/history/:id', requireAuth, controller.historyDetail);
+router.get('/qr', requireAuth, controller.qr);
 router.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });

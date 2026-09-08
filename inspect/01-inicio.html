@@ -1,0 +1,142 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head>
+			<meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+			<title>.::Business NET::.</title><link type="text/css" rel="stylesheet" href="/Seguridad-WEB/javax.faces.resource/theme.css.xhtml?ln=primefaces-codesa"><link type="text/css" rel="stylesheet" href="/Seguridad-WEB/javax.faces.resource/primefaces.css.xhtml;jsessionid=MFd3JIMFDnAmnSmoD93hv0pnn4Rz3m2G40QX0DCx.Wildfly12_Cerberus?ln=primefaces"><script type="text/javascript" src="/Seguridad-WEB/javax.faces.resource/jquery/jquery.js.xhtml;jsessionid=MFd3JIMFDnAmnSmoD93hv0pnn4Rz3m2G40QX0DCx.Wildfly12_Cerberus?ln=primefaces"></script><script type="text/javascript" src="/Seguridad-WEB/javax.faces.resource/primefaces.js.xhtml;jsessionid=MFd3JIMFDnAmnSmoD93hv0pnn4Rz3m2G40QX0DCx.Wildfly12_Cerberus?ln=primefaces"></script>
+		<link type="text/css" href="../../resources/css-modulo5/theme.css" rel="stylesheet">
+		<link rel="shortcut icon" href="../../resources/images/favicon.ico" type="image/x-icon">
+		<link rel="icon" href="../../resources/images/favicon.ico" type="image/x-icon">
+		<script src="../../resources/js/unsigned.js"></script></head><body class="unsigned">
+		<div id="cds-container">
+			<div id="cds-valign" style="margin-top: 167px;">
+				<div class="logo-login"><img src="/Seguridad-WEB/javax.faces.resource/images/logo-bnet-login.png.xhtml">
+				</div>
+<form id="frmLogin" name="frmLogin" method="post" action="/Seguridad-WEB/XHTML/general/login.xhtml;jsessionid=MFd3JIMFDnAmnSmoD93hv0pnn4Rz3m2G40QX0DCx.Wildfly12_Cerberus" enctype="application/x-www-form-urlencoded">
+<input type="hidden" name="frmLogin" value="frmLogin">
+<span id="frmLogin:focLogin"></span><script type="text/javascript">$(function(){PrimeFaces.focus(null, 'frmLogin');});</script>
+			<div class="welcome">
+				<strong>¡Bienvenido!</strong><br>Por favor, ingrese su usuario y contraseña para continuar.
+
+			</div><span id="frmLogin:growl"></span><span id="frmLogin:j_idt10"><div id="frmLogin:j_idt11" class="ui-panel ui-widget ui-widget-content ui-corner-all cds-panel-simple cds-panel-small"><div id="frmLogin:j_idt11_content" class="ui-panel-content ui-widget-content"><table id="frmLogin:j_idt12" class="ui-panelgrid ui-widget cds-full-weight" style="width:100%" role="grid"><tbody><tr class="ui-widget-content" role="row"><td role="gridcell"><label for="frmLogin:user">Usuario</label></td><td role="gridcell"><input id="frmLogin:user" name="frmLogin:user" type="text" autocomplete="off" title="Nombre de usuario" onchange="calcular()" class="ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all input_user" role="textbox" aria-disabled="false" aria-readonly="false" aria-multiline="false"></td></tr><tr class="ui-widget-content" role="row"><td role="gridcell"><label for="frmLogin:password">Contraseña</label></td><td role="gridcell"><input id="frmLogin:password" name="frmLogin:password" type="password" class="ui-inputfield ui-password ui-widget ui-state-default ui-corner-all" title="Contraseña de ingreso" role="textbox" aria-disabled="false" aria-readonly="false" aria-multiline="false"></td></tr><tr class="ui-widget-content" role="row"><td role="gridcell">
+
+						<!-- &lt;h:link outcome=&quot;recordar&quot; value=&quot;Recuperar Contrasena&quot; styleClass=&quot;cds-link-red&quot; /&gt; --></td><td role="gridcell"><button id="frmLogin:send" name="frmLogin:send" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only cds-button-red btn-login" onclick="PrimeFaces.ab({source:'frmLogin:send',update:'frmLogin:growl frmLogin'});return false;" type="submit" role="button" aria-disabled="false"><span class="ui-button-text">Ingresar</span></button></td></tr></tbody></table></div></div><div id="frmLogin:j_idt16"><div id="frmLogin:j_idt16_start" style="display:none">
+						<center><table>
+<tbody>
+<tr>
+<td><label>Cargando...</label></td>
+</tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr>
+<td><img id="frmLogin:barraCarga" src="/Seguridad-WEB/javax.faces.resource/images/ajaxloadingbar.gif.xhtml;jsessionid=MFd3JIMFDnAmnSmoD93hv0pnn4Rz3m2G40QX0DCx.Wildfly12_Cerberus" alt="" style="padding: 0px;"></td>
+</tr>
+</tbody>
+</table>
+
+						</center></div><div id="frmLogin:j_idt16_complete" style="display:none"></div></div>
+
+
+
+
+				<!-- &lt;p:dataGrid rendered=&quot;false&quot; var=&quot;programa&quot;
+					value=&quot;&quot; columns=&quot;3&quot; paginator=&quot;false&quot;&gt;
+
+					&lt;p:panel header=&quot;&quot;
+						styleClass=&quot;cds-panel-simple&quot; style=&quot;text-align:center&quot;&gt;
+						&lt;center&gt;
+							&lt;h:panelGrid columns=&quot;3&quot; style=&quot;max-width:500px&quot;&gt;
+
+								&lt;p:commandButton value=&quot;&quot;
+									styleClass=&quot;cds-button-red&quot;
+									actionListener=&quot;&quot;
+									oncomplete=&quot;replace()&quot;&gt;
+
+								&lt;/p:commandButton&gt;
+
+							&lt;/h:panelGrid&gt;
+							&lt;p:panel style=&quot;width:310px&quot;&gt;
+								&lt;h:outputText value=&quot;&quot; /&gt;
+							&lt;/p:panel&gt;
+						&lt;/center&gt;
+					&lt;/p:panel&gt;
+
+				&lt;/p:dataGrid&gt; --></span><input id="frmLogin:usuario" type="hidden" name="frmLogin:usuario"><input id="frmLogin:contrasena" type="hidden" name="frmLogin:contrasena"><input id="frmLogin:rolUsuario" type="hidden" name="frmLogin:rolUsuario"><input id="frmLogin:ipCerberus" type="hidden" name="frmLogin:ipCerberus"><input id="frmLogin:puertoCerberus" type="hidden" name="frmLogin:puertoCerberus"><input id="frmLogin:jsonData" type="hidden" name="frmLogin:jsonData"><input type="hidden" name="javax.faces.ViewState" id="javax.faces.ViewState" value="-6571163092194838533:-7656627012066660396" autocomplete="off">
+</form>
+
+
+
+		<script type="text/javascript">
+function send(url){
+
+	
+	var username = document.getElementById('frmLogin:usuario').value;
+	var contrasena = document.getElementById('frmLogin:contrasena').value;
+
+
+	var xmlhttp =new XMLHttpRequest();
+	
+	xmlhttp.open("POST",url,true);
+	//xmlhttp.setRequestHeader("Content-type","application/x-www-form-urlencoded");
+	xmlhttp.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+	var parameter = 'usuario='+username;
+	xmlhttp.send(parameter);
+	window.location.replace(url); 
+	
+}
+function replace(){
+	
+	window.location.replace("http://"+window.location.host+"/Seguridad-WEB/XHTML/ModuloSeguridad/proxy.xhtml");
+}
+
+
+
+function http_req(url){
+	var username = document.getElementById('frmLogin:usuario').value;
+	var contrasena = document.getElementById('frmLogin:contrasena').value;
+	var jsonData = document.getElementById('frmLogin:jsonData').value;
+	var rolUsuario = document.getElementById('frmLogin:rolUsuario').value;
+	var ipCerberus = document.getElementById('frmLogin:ipCerberus').value;
+	var puertoCerberus = document.getElementById('frmLogin:puertoCerberus').value;
+	var parameter= 'usuario='+username+';'+contrasena+';'+jsonData+';'+rolUsuario+';'+ipCerberus+';'+puertoCerberus;
+	
+	 if(window.XMLHttpRequest){
+			
+	  var ajaxResponse = new XMLHttpRequest();
+	 }else
+	  if(window.ActiveXObject){ // IE
+	   try{
+	    var ajaxResponse = new ActiveXObject("Msxml2.XMLHTTP");
+	   }catch(e){
+	    try {
+	     var ajaxResponse = new ActiveXObject("Microsoft.XMLHTTP");
+	    }catch(e){
+	     return false;
+	    }
+	   };
+	  };
+	  if(!ajaxResponse){
+	   return false;
+	  };
+	  if(parameter){
+	   ajaxResponse.open('POST', url, false);
+	   ajaxResponse.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+	   ajaxResponse.send(parameter);
+	   window.location.replace(url); 
+	
+	  }else{
+	   ajaxResponse.open('GET', url, false);
+	   ajaxResponse.send(null);
+	   window.location.replace(url); 
+	  }
+	  if(ajaxResponse.status == 200){
+	   return ajaxResponse.responseText;
+	  }else{
+	   return false;
+	  };
+	};
+</script>
+			</div>
+			<div class="clear clear-page">.</div><div id="j_idt26" class="ui-panel ui-widget ui-widget-content ui-corner-all cds-panel-footer"><div id="j_idt26_content" class="ui-panel-content ui-widget-content">Cerberus V3.3 RS:51662 © <strong>CODESA
+					S.A.</strong> - Calle 13 No. 22A - 24 - PBX: (+572) 485 23 85 Cali, Colombia. </div></div>
+		</div>
+<div id="textarea_simulator" style="position: absolute; top: 0px; left: 0px; visibility: hidden;"></div><div id="frmLogin:growl_container" class="ui-growl ui-widget" style="z-index: 1001;"></div></body></html>

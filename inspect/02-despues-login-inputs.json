@@ -1,0 +1,18 @@
+[
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "frmInicio",
+    "type": "hidden",
+    "cls": "",
+    "val": "frmInicio"
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "5470831641492540783:1993659852400804330"
+  }
+]

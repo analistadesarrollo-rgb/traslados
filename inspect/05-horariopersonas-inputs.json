@@ -1,0 +1,706 @@
+[
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "j_idt24",
+    "type": "hidden",
+    "cls": "",
+    "val": "j_idt24"
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "-5825143247144423528:-398368194711408027"
+  },
+  {
+    "tag": "INPUT",
+    "id": "userSimple_input",
+    "name": "userSimple_input",
+    "type": "text",
+    "cls": "ui-autocomplete-input ui-inputfield ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "userSimple_hinput",
+    "name": "userSimple_hinput",
+    "type": "hidden",
+    "cls": "",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "user_input",
+    "name": "user_input",
+    "type": "text",
+    "cls": "ui-autocomplete-input ui-inputfield ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "user_hinput",
+    "name": "user_hinput",
+    "type": "hidden",
+    "cls": "",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "frmMenu",
+    "type": "hidden",
+    "cls": "",
+    "val": "frmMenu"
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "-5825143247144423528:-398368194711408027"
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "frmMigaPan",
+    "type": "hidden",
+    "cls": "",
+    "val": "frmMigaPan"
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "-5825143247144423528:-398368194711408027"
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "formHorariopersonas",
+    "type": "hidden",
+    "cls": "",
+    "val": "formHorariopersonas"
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:txtPrsDocumento",
+    "name": "formHorariopersonas:txtPrsDocumento",
+    "type": "text",
+    "cls": "ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all campoPrimario",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:txtNombre",
+    "name": "formHorariopersonas:txtNombre",
+    "type": "text",
+    "cls": "ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all ui-state-disabled",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:txtCargo",
+    "name": "formHorariopersonas:txtCargo",
+    "type": "text",
+    "cls": "ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all ui-state-disabled",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:txtGrpvtas",
+    "name": "formHorariopersonas:txtGrpvtas",
+    "type": "text",
+    "cls": "ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all ui-state-disabled",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:txtUbcntrtrio_compuesto_de",
+    "name": "formHorariopersonas:txtUbcntrtrio_compuesto_de",
+    "type": "text",
+    "cls": "ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all ui-state-disabled",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:txtUbcneg_trtrio",
+    "name": "formHorariopersonas:txtUbcneg_trtrio",
+    "type": "text",
+    "cls": "ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all ui-state-disabled",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:txtCodigoGrupoPlanes",
+    "name": "formHorariopersonas:txtCodigoGrupoPlanes",
+    "type": "text",
+    "cls": "ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all ui-state-disabled",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:txtGrupoPlanes",
+    "name": "formHorariopersonas:txtGrupoPlanes",
+    "type": "text",
+    "cls": "ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all ui-state-disabled",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:txtCodigoPlanVtaProdVirtuales",
+    "name": "formHorariopersonas:txtCodigoPlanVtaProdVirtuales",
+    "type": "text",
+    "cls": "ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all ui-state-disabled",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:txtPlanVtaProdVirtuales",
+    "name": "formHorariopersonas:txtPlanVtaProdVirtuales",
+    "type": "text",
+    "cls": "ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all ui-state-disabled",
+    "val": ""
+  },
+  {
+    "tag": "BUTTON",
+    "id": "formHorariopersonas:btnConsultarPer",
+    "name": "formHorariopersonas:btnConsultarPer",
+    "type": "submit",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-icon-left cds-icon-button",
+    "val": ""
+  },
+  {
+    "tag": "BUTTON",
+    "id": "formHorariopersonas:btnLimpiarPer",
+    "name": "formHorariopersonas:btnLimpiarPer",
+    "type": "submit",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-icon-left cds-icon-button",
+    "val": ""
+  },
+  {
+    "tag": "BUTTON",
+    "id": "formHorariopersonas:btnHorariopersona",
+    "name": "formHorariopersonas:btnHorariopersona",
+    "type": "push",
+    "cls": "",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "formHorariopersonas:dtHorariopersona_checkbox",
+    "type": "checkbox",
+    "cls": "",
+    "val": "on"
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:dtHorariopersona:dtSucursal:filter",
+    "name": "formHorariopersonas:dtHorariopersona:dtSucursal:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all ui-state-focus",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:dtHorariopersona:j_idt122:filter",
+    "name": "formHorariopersonas:dtHorariopersona:j_idt122:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:dtHorariopersona:j_idt124:filter",
+    "name": "formHorariopersonas:dtHorariopersona:j_idt124:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:dtHorariopersona:j_idt126:filter",
+    "name": "formHorariopersonas:dtHorariopersona:j_idt126:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:dtHorariopersona:j_idt128:filter",
+    "name": "formHorariopersonas:dtHorariopersona:j_idt128:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:dtHorariopersona:j_idt130:filter",
+    "name": "formHorariopersonas:dtHorariopersona:j_idt130:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:dtHorariopersona:j_idt133:filter",
+    "name": "formHorariopersonas:dtHorariopersona:j_idt133:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:dtHorariopersona:j_idt135:filter",
+    "name": "formHorariopersonas:dtHorariopersona:j_idt135:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "SELECT",
+    "id": "",
+    "name": "",
+    "type": null,
+    "cls": "ui-paginator-rpp-options ui-widget ui-state-default ui-corner-left",
+    "val": "5"
+  },
+  {
+    "tag": "INPUT",
+    "id": "formHorariopersonas:dtHorariopersona_selection",
+    "name": "formHorariopersonas:dtHorariopersona_selection",
+    "type": "hidden",
+    "cls": "",
+    "val": ""
+  },
+  {
+    "tag": "BUTTON",
+    "id": "formHorariopersonas:btnAgregarHorario",
+    "name": "formHorariopersonas:btnAgregarHorario",
+    "type": "submit",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-icon-left ui-state-disabled cds-icon-button",
+    "val": ""
+  },
+  {
+    "tag": "BUTTON",
+    "id": "formHorariopersonas:eliminarDetalleParametro",
+    "name": "formHorariopersonas:eliminarDetalleParametro",
+    "type": "submit",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-icon-left cds-icon-button",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "-5825143247144423528:-398368194711408027"
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "j_idt249",
+    "type": "hidden",
+    "cls": "",
+    "val": "j_idt249"
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "-5825143247144423528:-398368194711408027"
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "sesion",
+    "type": "hidden",
+    "cls": "",
+    "val": "sesion"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "sesion:j_idt16",
+    "name": "sesion:j_idt16",
+    "type": "submit",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "-5825143247144423528:-398368194711408027"
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "frmdlgPersonas",
+    "type": "hidden",
+    "cls": "",
+    "val": "frmdlgPersonas"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "frmdlgPersonas:btnPersonas",
+    "name": "frmdlgPersonas:btnPersonas",
+    "type": "push",
+    "cls": "",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmdlgPersonas:dtbPersonas:j_idt147:filter",
+    "name": "frmdlgPersonas:dtbPersonas:j_idt147:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmdlgPersonas:dtbPersonas:j_idt149:filter",
+    "name": "frmdlgPersonas:dtbPersonas:j_idt149:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmdlgPersonas:dtbPersonas:j_idt151:filter",
+    "name": "frmdlgPersonas:dtbPersonas:j_idt151:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmdlgPersonas:dtbPersonas:j_idt153:filter",
+    "name": "frmdlgPersonas:dtbPersonas:j_idt153:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmdlgPersonas:dtbPersonas:j_idt155:filter",
+    "name": "frmdlgPersonas:dtbPersonas:j_idt155:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmdlgPersonas:dtbPersonas:j_idt157:filter",
+    "name": "frmdlgPersonas:dtbPersonas:j_idt157:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmdlgPersonas:dtbPersonas:j_idt159:filter",
+    "name": "frmdlgPersonas:dtbPersonas:j_idt159:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "SELECT",
+    "id": "",
+    "name": "",
+    "type": null,
+    "cls": "ui-paginator-rpp-options ui-widget ui-state-default ui-corner-left",
+    "val": "5"
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmdlgPersonas:dtbPersonas_selection",
+    "name": "frmdlgPersonas:dtbPersonas_selection",
+    "type": "hidden",
+    "cls": "",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "-5825143247144423528:-398368194711408027"
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "formPopupNueva",
+    "type": "hidden",
+    "cls": "",
+    "val": "formPopupNueva"
+  },
+  {
+    "tag": "INPUT",
+    "id": "formPopupNueva:txtSucursal",
+    "name": "formPopupNueva:txtSucursal",
+    "type": "text",
+    "cls": "ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all campoForaneo hasSearch cod-bsq ui-state-focus",
+    "val": ""
+  },
+  {
+    "tag": "BUTTON",
+    "id": "formPopupNueva:j_idt176",
+    "name": "formPopupNueva:j_idt176",
+    "type": "submit",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-icon-only cds-custom-search",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formPopupNueva:txtSucursalNombre",
+    "name": "formPopupNueva:txtSucursalNombre",
+    "type": "text",
+    "cls": "ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all dsc-bsq",
+    "val": ""
+  },
+  {
+    "tag": "SELECT",
+    "id": "formPopupNueva:smeTipoHorario_input",
+    "name": "formPopupNueva:smeTipoHorario_input",
+    "type": null,
+    "cls": "",
+    "val": "-1"
+  },
+  {
+    "tag": "INPUT",
+    "id": "formPopupNueva:txtHoraentrada",
+    "name": "formPopupNueva:txtHoraentrada",
+    "type": "text",
+    "cls": "ui-inputfield ui-inputmask ui-widget ui-state-default ui-corner-all ui-state-disabled",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formPopupNueva:txtHoraSalida",
+    "name": "formPopupNueva:txtHoraSalida",
+    "type": "text",
+    "cls": "ui-inputfield ui-inputmask ui-widget ui-state-default ui-corner-all ui-state-disabled",
+    "val": ""
+  },
+  {
+    "tag": "SELECT",
+    "id": "formPopupNueva:smeTipodia_input",
+    "name": "formPopupNueva:smeTipodia_input",
+    "type": null,
+    "cls": "",
+    "val": "-1"
+  },
+  {
+    "tag": "INPUT",
+    "id": "formPopupNueva:popupButtonCalini_input",
+    "name": "formPopupNueva:popupButtonCalini_input",
+    "type": "text",
+    "cls": "ui-inputfield ui-widget ui-state-default ui-corner-all ui-state-disabled",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "formPopupNueva:popupButtonCal_input",
+    "name": "formPopupNueva:popupButtonCal_input",
+    "type": "text",
+    "cls": "ui-inputfield ui-widget ui-state-default ui-corner-all hasDatepicker",
+    "val": ""
+  },
+  {
+    "tag": "BUTTON",
+    "id": "",
+    "name": "",
+    "type": "button",
+    "cls": "ui-datepicker-trigger ui-button ui-widget ui-state-default ui-corner-all ui-button-icon-only",
+    "val": ""
+  },
+  {
+    "tag": "BUTTON",
+    "id": "formPopupNueva:guardar2",
+    "name": "formPopupNueva:guardar2",
+    "type": "submit",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-icon-left cds-icon-button",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "-5825143247144423528:-398368194711408027"
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "frmdlgPuntodeventa",
+    "type": "hidden",
+    "cls": "",
+    "val": "frmdlgPuntodeventa"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "frmdlgPuntodeventa:btnPuntodeventa",
+    "name": "frmdlgPuntodeventa:btnPuntodeventa",
+    "type": "push",
+    "cls": "",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmdlgPuntodeventa:dtbPuntodeventa:j_idt202:filter",
+    "name": "frmdlgPuntodeventa:dtbPuntodeventa:j_idt202:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmdlgPuntodeventa:dtbPuntodeventa:j_idt204:filter",
+    "name": "frmdlgPuntodeventa:dtbPuntodeventa:j_idt204:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmdlgPuntodeventa:dtbPuntodeventa:j_idt206:filter",
+    "name": "frmdlgPuntodeventa:dtbPuntodeventa:j_idt206:filter",
+    "type": null,
+    "cls": "ui-column-filter ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "SELECT",
+    "id": "",
+    "name": "",
+    "type": null,
+    "cls": "ui-paginator-rpp-options ui-widget ui-state-default ui-corner-left",
+    "val": "5"
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmdlgPuntodeventa:dtbPuntodeventa_selection",
+    "name": "frmdlgPuntodeventa:dtbPuntodeventa_selection",
+    "type": "hidden",
+    "cls": "",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "-5825143247144423528:-398368194711408027"
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "formconfirmEliminarM",
+    "type": "hidden",
+    "cls": "",
+    "val": "formconfirmEliminarM"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "formconfirmEliminarM:btnEliminarVariosHorarios",
+    "name": "formconfirmEliminarM:btnEliminarVariosHorarios",
+    "type": "submit",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only",
+    "val": ""
+  },
+  {
+    "tag": "BUTTON",
+    "id": "formconfirmEliminarM:j_idt218",
+    "name": "formconfirmEliminarM:j_idt218",
+    "type": "button",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "-5825143247144423528:-398368194711408027"
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "formConfirmEliminar",
+    "type": "hidden",
+    "cls": "",
+    "val": "formConfirmEliminar"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "formConfirmEliminar:btnEliminarUnHorario",
+    "name": "formConfirmEliminar:btnEliminarUnHorario",
+    "type": "submit",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only",
+    "val": ""
+  },
+  {
+    "tag": "BUTTON",
+    "id": "formConfirmEliminar:j_idt228",
+    "name": "formConfirmEliminar:j_idt228",
+    "type": "button",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "-5825143247144423528:-398368194711408027"
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "formConfirmCierreFechaFinal",
+    "type": "hidden",
+    "cls": "",
+    "val": "formConfirmCierreFechaFinal"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "formConfirmCierreFechaFinal:j_idt239",
+    "name": "formConfirmCierreFechaFinal:j_idt239",
+    "type": "submit",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only",
+    "val": ""
+  },
+  {
+    "tag": "BUTTON",
+    "id": "formConfirmCierreFechaFinal:j_idt240",
+    "name": "formConfirmCierreFechaFinal:j_idt240",
+    "type": "button",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "-5825143247144423528:-398368194711408027"
+  }
+]

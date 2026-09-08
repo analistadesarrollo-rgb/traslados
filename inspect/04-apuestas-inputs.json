@@ -1,0 +1,106 @@
+[
+  {
+    "tag": "INPUT",
+    "id": "user_input",
+    "name": "user_input",
+    "type": "text",
+    "cls": "ui-autocomplete-input ui-inputfield ui-widget ui-state-default ui-corner-all",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "user_hinput",
+    "name": "user_hinput",
+    "type": "hidden",
+    "cls": "",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "j_idt42",
+    "type": "hidden",
+    "cls": "",
+    "val": "j_idt42"
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "556217920980229897:4104001609909472492"
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "frmInicio",
+    "type": "hidden",
+    "cls": "",
+    "val": "frmInicio"
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmInicio:ip",
+    "name": "frmInicio:ip",
+    "type": "hidden",
+    "cls": "",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "556217920980229897:4104001609909472492"
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "sesion",
+    "type": "hidden",
+    "cls": "",
+    "val": "sesion"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "sesion:j_idt13",
+    "name": "sesion:j_idt13",
+    "type": "submit",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "556217920980229897:4104001609909472492"
+  },
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "frmdlgNotBeUser",
+    "type": "hidden",
+    "cls": "",
+    "val": "frmdlgNotBeUser"
+  },
+  {
+    "tag": "BUTTON",
+    "id": "frmdlgNotBeUser:j_idt19",
+    "name": "frmdlgNotBeUser:j_idt19",
+    "type": "submit",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only",
+    "val": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "556217920980229897:4104001609909472492"
+  }
+]

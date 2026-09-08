@@ -1,0 +1,101 @@
+[
+  {
+    "tag": "INPUT",
+    "id": "",
+    "name": "frmLogin",
+    "type": "hidden",
+    "cls": "",
+    "val": "frmLogin",
+    "placeholder": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmLogin:user",
+    "name": "frmLogin:user",
+    "type": "text",
+    "cls": "ui-inputfield ui-inputtext ui-widget ui-state-default ui-corner-all input_user",
+    "val": "",
+    "placeholder": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmLogin:password",
+    "name": "frmLogin:password",
+    "type": "password",
+    "cls": "ui-inputfield ui-password ui-widget ui-state-default ui-corner-all",
+    "val": "[hidden]",
+    "placeholder": ""
+  },
+  {
+    "tag": "BUTTON",
+    "id": "frmLogin:send",
+    "name": "frmLogin:send",
+    "type": "submit",
+    "cls": "ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only cds-button-red btn-login",
+    "val": "",
+    "placeholder": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmLogin:usuario",
+    "name": "frmLogin:usuario",
+    "type": "hidden",
+    "cls": "",
+    "val": "",
+    "placeholder": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmLogin:contrasena",
+    "name": "frmLogin:contrasena",
+    "type": "hidden",
+    "cls": "",
+    "val": "",
+    "placeholder": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmLogin:rolUsuario",
+    "name": "frmLogin:rolUsuario",
+    "type": "hidden",
+    "cls": "",
+    "val": "",
+    "placeholder": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmLogin:ipCerberus",
+    "name": "frmLogin:ipCerberus",
+    "type": "hidden",
+    "cls": "",
+    "val": "",
+    "placeholder": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmLogin:puertoCerberus",
+    "name": "frmLogin:puertoCerberus",
+    "type": "hidden",
+    "cls": "",
+    "val": "",
+    "placeholder": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "frmLogin:jsonData",
+    "name": "frmLogin:jsonData",
+    "type": "hidden",
+    "cls": "",
+    "val": "",
+    "placeholder": ""
+  },
+  {
+    "tag": "INPUT",
+    "id": "javax.faces.ViewState",
+    "name": "javax.faces.ViewState",
+    "type": "hidden",
+    "cls": "",
+    "val": "-6571163092194838533:-7656627012066660396",
+    "placeholder": ""
+  }
+]

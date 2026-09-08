@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mock BusinessNET</title>
+<style>
+  body { font-family: sans-serif; }
+  .screen { display: none; }
+  .dialog { display: none; position: fixed; top: 80px; left: 30%; width: 40%; background: #fff; border: 1px solid #888; padding: 10px; z-index: 100; }
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 90; }
+  table { border-collapse: collapse; }
+  td, th { border: 1px solid #999; padding: 3px 6px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="overlay" id="overlay"></div>
+<div id="screenHost"></div>
+
+<!-- ==== LOGIN (Cerberus) ==== -->
+<div class="screen" id="loginScreen">
+  <h1>Cerberus</h1>
+  <form id="frmLogin">
+    <label>Usuario</label><input id="frmLogin:user" type="text"><br>
+    <label>Contraseña</label><input id="frmLogin:password" type="password"><br>
+    <button id="frmLogin:send" type="button">Ingresar</button>
+    <div id="loginError" style="display:none;color:red">Usuarios incorrectos</div>
+  </form>
+</div>
+
+<!-- ==== HOME portal seguridad (módulo APUESTAS) ==== -->
+<div class="screen" id="homeScreen">
+  <h2>Bienvenido</h2>
+  <form id="frmInicio">
+    <a href="#" id="frmInicio:grid:0:j_idt41"><span class="modulo-titulo">APUESTAS</span></a>
+  </form>
+</div>
+
+<!-- ==== horariopersonas.xhtml ==== -->
+<div class="screen" id="hpScreen">
+  <h2>Programación de personal</h2>
+  <form id="formHorariopersonas">
+    <label>Persona (solo consulta)</label>
+    <input id="formHorariopersonas:txtPrsDocumento" type="text">
+    <input id="formHorariopersonas:txtNombre" type="text" readonly>
+    <input id="formHorariopersonas:txtCargo" type="text" readonly>
+    <button id="formHorariopersonas:btnConsultarPer" type="button">Consultar</button>
+    <button id="formHorariopersonas:btnLimpiarPer" type="button">Limpiar</button>
+    <div id="personaError" style="display:none;color:red">Persona no encontrada</div>
+    <hr>
+    <h3>Horarios y sucursales asignadas a la persona</h3>
+    <table>
+      <thead><tr>
+        <th><input type="checkbox" id="formHorariopersonas:dtHorariopersona_checkbox"></th>
+        <th>Sucursal</th><th>Nombre</th><th>Tipo horario</th>
+        <th>Hora inicio</th><th>Hora final</th><th>Tipo día</th>
+        <th>Fecha inicial</th><th>Fecha final</th><th></th>
+      </tr></thead>
+      <tbody id="formHorariopersonas:dtHorariopersona_data"></tbody>
+    </table>
+    <button id="formHorariopersonas:btnAgregarHorario" type="button">Agregar</button>
+    <button id="formHorariopersonas:eliminarDetalleParametro" type="button">Eliminar</button>
+    <input type="hidden" id="formHorariopersonas:dtHorariopersona_selection">
+  </form>
+</div>
+
+<!-- ==== Diálogo de personas ==== -->
+<div class="dialog" id="frmdlgPersonas">
+  <h3>Personas</h3>
+  <table>
+    <thead><tr>
+      <th>Nombre</th><th>Código</th><th>Cargo</th><th>Zona</th><th>Centro costo</th>
+      <th>Grp. ventas</th><th>Grupos planes</th><th></th>
+      <th><input id="frmdlgPersonas:dtbPersonas:j_idt149:filter" placeholder="Filtro Código"></th>
+    </tr></thead>
+    <tbody id="frmdlgPersonas:dtbPersonas_data"></tbody>
+  </table>
+</div>
+
+<!-- ==== Diálogo FormPopupNueva (Agregar horario) ==== -->
+<div class="dialog" id="formPopupNueva">
+  <h3>Horarios y sucursales asignadas a la persona</h3>
+  <label>Sucursal (*)</label>
+  <input id="formPopupNueva:txtSucursal" type="text">
+  <input id="formPopupNueva:txtSucursalNombre" type="text" readonly>
+  <div id="branchNotFound" style="display:none;color:red">Sucursal no existe</div>
+  <br>
+  <label>Tipo horario (*)</label>
+  <select id="formPopupNueva:smeTipoHorario_input">
+    <option value="-1">Seleccionar</option>
+    <option value="1">TODO EL DIA</option>
+    <option value="2">MANANA</option>
+    <option value="3">TARDE</option>
+  </select><br>
+  <label>Tipo día (*)</label>
+  <select id="formPopupNueva:smeTipodia_input">
+    <option value="-1">Seleccionar</option>
+    <option value="N">Normal</option>
+    <option value="E">Extra</option>
+  </select><br>
+  <label>Fecha inicio (*)</label>
+  <input id="formPopupNueva:popupButtonCalini_input" type="text" disabled><br>
+  <label>Fecha final</label>
+  <input id="formPopupNueva:popupButtonCal_input" type="text"><br>
+  <button id="formPopupNueva:guardar2" type="button">Guardar</button>
+</div>
+
+<!-- ==== Confirmación eliminar ==== -->
+<div class="dialog" id="formconfirmEliminarM">
+  <p>¿Está seguro que desea eliminar estos registros?</p>
+  <button id="formconfirmEliminarM:btnEliminarVariosHorarios" type="button">Si</button>
+  <button type="button" onclick="hide('formconfirmEliminarM')">No</button>
+</div>
+
+<!-- ==== Confirmación cierre de horarios anteriores ==== -->
+<div class="dialog" id="formConfirmCierreFechaFinal" style="display:none;">
+  <p>Ya existen algunos horarios creados con anterioridad. Al continuar con el proceso, se realizara el cierre de los mismos. Desea continuar el proceso?</p>
+  <button id="formConfirmCierreFechaFinal:j_idt239" type="button">Si</button>
+  <button type="button" onclick="document.getElementById('formConfirmCierreFechaFinal').style.display='none'">No</button>
+</div>
+
+<script>
+  // ---------- util ----------
+  function show(id) { document.getElementById(id).style.display = 'block'; }
+  function hide(id) { document.getElementById(id).style.display = 'none'; }
+  function clearBody(id) {
+    const el = typeof id === 'string' ? document.getElementById(id) : id;
+    if (el) el.innerHTML = '';
+    return el;
+  }
+
+  // ---------- datos ----------
+  // Personas: { code, nombre, cargo, horarios:[ [sucursal,nombre,tipoHorario,horaIni,horaFin,tipoDia,fechaIni,fechaFin] ] }
+  const PERSONAS = {
+    '1234567890': { nombre: 'PEDRO PEREZ', cargo: 'PROMOTORIA A',
+      horarios: [ ['Sucursal Norte','PEDRO PEREZ','TODO EL DIA','04:00:00','22:30:00','Normal','02/09/2026',''] ] },
+    '7777777777': { nombre: 'JUAN SIN TURNO', cargo: 'CDA',
+      horarios: [ ['Sucursal Norte','JUAN SIN TURNO','MANANA','05:00:00','13:15:00','Normal','01/09/2026','01/09/2026'] ] },
+    '6666666666': { nombre: 'ANA DOS TURNOS', cargo: 'CDA',
+      horarios: [
+        ['Sucursal Norte','ANA DOS TURNOS','TODO EL DIA','04:00:00','22:30:00','Normal','02/09/2026',''],
+        ['Sucursal Centro','ANA DOS TURNOS','MANANA','05:00:00','13:15:00','Normal','02/09/2026','']
+      ] }
+  };
+  // Sucursales: código -> nombre
+  const SUCURSALES = { 'NORTE': 'Sucursal Norte', 'SUR': 'Sucursal Sur', 'CENTRO': 'Sucursal Centro' };
+
+  let currentPersonaCode = null;
+  let pendingNewHorario = null;
+
+  // persistencia de "sesión"
+  function loadState() { try { return JSON.parse(localStorage.getItem('mock_session') || '{}'); } catch (_) { return {}; } }
+  function saveState(s) { try { localStorage.setItem('mock_session', JSON.stringify(s)); } catch (_) {} }
+
+  const SCREENS = {
+    login: document.getElementById('loginScreen'),
+    home: document.getElementById('homeScreen'),
+    hp: document.getElementById('hpScreen'),
+  };
+
+  function renderScreens() {
+    const s = loadState();
+    // Solo la pantalla activa permanece adjunta al DOM, simulando páginas
+    // separadas (isLoginPage / isHomePage comprueban presencia por selector).
+    const activeId = !s.logged ? 'login' : (!s.module ? 'home' : 'hp');
+    const host = document.getElementById('screenHost');
+    const active = SCREENS[activeId];
+    ['login', 'home', 'hp'].forEach((key) => {
+      if (key === activeId) return;
+      const el = SCREENS[key];
+      if (el && el.parentNode && el.parentNode !== host) {
+        el.parentNode.removeChild(el);
+      }
+    });
+    if (active && active.parentNode !== host) host.appendChild(active);
+    if (active) active.style.display = 'block';
+    hide('overlay');
+    if (s.dialog) { show(s.dialog); show('overlay'); }
+  }
+
+  function showDialog(id) { const s = loadState(); s.dialog = id; saveState(s); renderScreens(); }
+  function hideDialog(id) { const s = loadState(); s.dialog = null; saveState(s); renderScreens(); }
+
+  // ---------- login ----------
+  document.getElementById('frmLogin:send').addEventListener('click', () => {
+    const u = document.getElementById('frmLogin:user').value;
+    const p = document.getElementById('frmLogin:password').value;
+    if (u === 'admin' && p === 'secret') {
+      saveState({ logged: true });
+      renderScreens();
+    } else {
+      show('loginError');
+    }
+  });
+
+  // ---------- módulo apuestas ----------
+  document.getElementById('frmInicio:grid:0:j_idt41').addEventListener('click', (e) => {
+    e.preventDefault();
+    const s = loadState(); s.module = true; saveState(s);
+    renderScreens();
+  });
+
+  // ---------- render de personas en el diálogo ----------
+  function renderPersonas(filterCode) {
+    const tb = document.getElementById('frmdlgPersonas:dtbPersonas_data');
+    clearBody(tb);
+    Object.keys(PERSONAS).forEach((code, i) => {
+      const p = PERSONAS[code];
+      if (filterCode && code.indexOf(filterCode) === -1) return;
+      const tr = document.createElement('tr');
+      tr.setAttribute('data-rk', code);
+      tr.setAttribute('data-ri', String(i));
+      const cells = [p.nombre, code, p.cargo, 'Z', 'CC', 'GV', 'GP'];
+      cells.forEach(c => { const td = document.createElement('td'); td.innerHTML = '<div class="ui-dt-c">'+c+'</div>'; tr.appendChild(td); });
+      const act = document.createElement('td');
+      act.innerHTML = '<div class="ui-dt-c"><button id="frmdlgPersonas:dtbPersonas:'+i+':btnCapturarPersona" type="button">Seleccionar</button></div>';
+      act.querySelector('button').addEventListener('click', () => {
+        currentPersonaCode = code;
+        document.getElementById('formHorariopersonas:txtPrsDocumento').value = code;
+        document.getElementById('formHorariopersonas:txtNombre').value = p.nombre;
+        document.getElementById('formHorariopersonas:txtCargo').value = p.cargo;
+        renderHorarios();
+        hideDialog('frmdlgPersonas');
+      });
+      tr.appendChild(act);
+      tb.appendChild(tr);
+    });
+    if (tb.children.length === 0) {
+      const tr = document.createElement('tr');
+      tr.className = 'ui-datatable-empty-message';
+      const td = document.createElement('td');
+      td.colSpan = 9;
+      td.innerHTML = '<div class="ui-dt-c">No se han encontrado registros que coincidan con los criterios especificados.</div>';
+      tr.appendChild(td);
+      tb.appendChild(tr);
+    }
+  }
+
+  // filtro del diálogo de personas
+  document.getElementById('frmdlgPersonas:dtbPersonas:j_idt149:filter').addEventListener('input', (e) => {
+    renderPersonas(e.target.value.trim());
+  });
+
+  // ---------- render horarios ----------
+  function renderHorarios() {
+    const tb = document.getElementById('formHorariopersonas:dtHorariopersona_data');
+    clearBody(tb);
+    if (!currentPersonaCode) return;
+    const hor = PERSONAS[currentPersonaCode].horarios;
+    hor.forEach((h, i) => {
+      const tr = document.createElement('tr');
+      tr.setAttribute('data-rk', h[0]); // sucursal como clave
+      // columna checkbox selección
+      const cbTd = document.createElement('td');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.name = 'formHorariopersonas:dtHorariopersona:'+i+':selection';
+      cbTd.appendChild(cb);
+      tr.appendChild(cbTd);
+      // columnas de datos: sucursal, nombre, tipo, hora ini, hora fin, tipo dia, fecha ini, fecha fin
+      const dataCells = [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7]];
+      dataCells.forEach(c => {
+        const td = document.createElement('td');
+        td.innerHTML = '<div class="ui-dt-c">'+c+'</div>';
+        tr.appendChild(td);
+      });
+      // columna acciones vacía
+      const act = document.createElement('td');
+      act.innerHTML = '<div class="ui-dt-c"></div>';
+      tr.appendChild(act);
+      tb.appendChild(tr);
+    });
+    if (tb.children.length === 0) {
+      const tr = document.createElement('tr');
+      tr.className = 'ui-datatable-empty-message';
+      const td = document.createElement('td');
+      td.colSpan = 10;
+      td.innerHTML = '<div class="ui-dt-c">No se han encontrado registros que coincidan con los criterios especificados.</div>';
+      tr.appendChild(td);
+      tb.appendChild(tr);
+    }
+  }
+
+  // ---------- consultar persona (siempre abre el diálogo, como el real) ----------
+  document.getElementById('formHorariopersonas:btnConsultarPer').addEventListener('click', () => {
+    const doc = document.getElementById('formHorariopersonas:txtPrsDocumento').value.trim();
+    document.getElementById('frmdlgPersonas:dtbPersonas:j_idt149:filter').value = doc || '';
+    renderPersonas(doc || undefined);
+    showDialog('frmdlgPersonas');
+  });
+
+  // ---------- eliminar ----------
+  document.getElementById('formHorariopersonas:eliminarDetalleParametro').addEventListener('click', () => {
+    if (!currentPersonaCode) return;
+    const tb = document.getElementById('formHorariopersonas:dtHorariopersona_data');
+    const rows = Array.from(tb.querySelectorAll('tr'));
+    const toDelete = [];
+    rows.forEach(r => {
+      const cb = r.querySelector('input[type="checkbox"]');
+      if (cb && cb.checked) toDelete.push(r);
+    });
+    if (toDelete.length === 0) { return; }
+    // guardar selección pendiente
+    window._pendingDelete = toDelete;
+    showDialog('formconfirmEliminarM');
+  });
+
+  document.getElementById('formconfirmEliminarM:btnEliminarVariosHorarios').addEventListener('click', () => {
+    const toDelete = window._pendingDelete || [];
+    toDelete.forEach(r => r.remove());
+    // eliminar también de los datos
+    if (currentPersonaCode) {
+      const hor = PERSONAS[currentPersonaCode].horarios;
+      const selectedSucursales = toDelete.map(r => r.getAttribute('data-rk'));
+      PERSONAS[currentPersonaCode].horarios = hor.filter(h => !selectedSucursales.includes(h[0]));
+    }
+    window._pendingDelete = null;
+    hideDialog('formconfirmEliminarM');
+    renderHorarios();
+  });
+
+  document.getElementById('formHorariopersonas:dtHorariopersona_checkbox').addEventListener('change', (e) => {
+    const tb = document.getElementById('formHorariopersonas:dtHorariopersona_data');
+    Array.from(tb.querySelectorAll('input[type="checkbox"]')).forEach(cb => cb.checked = e.target.checked);
+  });
+
+  // ---------- agregar ----------
+  document.getElementById('formHorariopersonas:btnAgregarHorario').addEventListener('click', () => {
+    if (!currentPersonaCode) { alert('Primero seleccione una persona'); return; }
+    // resetear diálogo
+    document.getElementById('formPopupNueva:txtSucursal').value = '';
+    document.getElementById('formPopupNueva:txtSucursalNombre').value = '';
+    document.getElementById('formPopupNueva:smeTipoHorario_input').value = '-1';
+    document.getElementById('formPopupNueva:smeTipodia_input').value = '-1';
+    document.getElementById('formPopupNueva:popupButtonCalini_input').value = '';
+    document.getElementById('formPopupNueva:popupButtonCal_input').value = '';
+    document.getElementById('formPopupNueva:popupButtonCalini_input').disabled = false;
+    showDialog('formPopupNueva');
+  });
+
+  // sucursal: al pulsar Enter resuelve el nombre
+  document.getElementById('formPopupNueva:txtSucursal').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const code = document.getElementById('formPopupNueva:txtSucursal').value.trim().toUpperCase();
+      const nombre = SUCURSALES[code];
+      if (nombre) {
+        document.getElementById('formPopupNueva:txtSucursalNombre').value = nombre;
+        hide('branchNotFound');
+      } else {
+        document.getElementById('formPopupNueva:txtSucursalNombre').value = '';
+        show('branchNotFound');
+      }
+    }
+  });
+
+  document.getElementById('formPopupNueva:guardar2').addEventListener('click', () => {
+    const suc = document.getElementById('formPopupNueva:txtSucursal').value.trim().toUpperCase();
+    const nombre = SUCURSALES[suc];
+    if (!nombre) { show('branchNotFound'); return; }
+    const tipo = document.getElementById('formPopupNueva:smeTipoHorario_input');
+    const tipoText = tipo.options[tipo.selectedIndex].text;
+    const tipoVal = tipo.value;
+    const dia = document.getElementById('formPopupNueva:smeTipodia_input');
+    const diaText = dia.options[dia.selectedIndex].text;
+    const diaVal = dia.value;
+    const fIni = document.getElementById('formPopupNueva:popupButtonCalini_input').value;
+    const p = PERSONAS[currentPersonaCode];
+
+    pendingNewHorario = { nombre, tipoText, tipoVal, diaText, diaVal, fIni };
+
+    const hasActive = p.horarios.some(h => !h[7] || !h[7].trim());
+    if (hasActive) {
+      hideDialog('formPopupNueva');
+      document.getElementById('formConfirmCierreFechaFinal').style.display = 'block';
+    } else {
+      p.horarios.push([nombre, p.nombre, tipoText, '04:00:00', '22:30:00', diaText, fIni, '']);
+      hideDialog('formPopupNueva');
+      renderHorarios();
+    }
+  });
+
+  document.getElementById('formConfirmCierreFechaFinal:j_idt239').addEventListener('click', () => {
+    const p = PERSONAS[currentPersonaCode];
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const today = `${dd}/${mm}/${yyyy}`;
+    p.horarios.forEach(h => { if (!h[7] || !h[7].trim()) h[7] = today; });
+    if (pendingNewHorario) {
+      p.horarios.push([pendingNewHorario.nombre, p.nombre, pendingNewHorario.tipoText, '04:00:00', '22:30:00', pendingNewHorario.diaText, pendingNewHorario.fIni, '']);
+      pendingNewHorario = null;
+    }
+    document.getElementById('formConfirmCierreFechaFinal').style.display = 'none';
+    renderScreens();
+    renderHorarios();
+  });
+
+  // ---------- init ----------
+  renderScreens();
+</script>
+</body>
+</html>

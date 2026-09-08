@@ -1,0 +1,24 @@
+[
+  {
+    "doc": "1144033639",
+    "nombre": "JULY PAULINA MORALES LOPEZ",
+    "horCount": 1,
+    "html": "<tr class=\"ui-widget-content ui-datatable-empty-message\"><td colspan=\"10\"><div class=\"ui-dt-c\">No se han encontrado registros que coincidan con los criterios especificados.</div></td></tr>"
+  },
+  {
+    "doc": "1112461905",
+    "error": "persona-no-encontrada"
+  },
+  {
+    "doc": "166335692",
+    "error": "persona-no-encontrada"
+  },
+  {
+    "doc": "805003010",
+    "error": "persona-no-encontrada"
+  },
+  {
+    "doc": "805014543",
+    "error": "persona-no-encontrada"
+  }
+]

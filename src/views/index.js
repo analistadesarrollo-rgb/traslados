@@ -107,9 +107,9 @@ function renderDashboard() {
       document.getElementById('browser-status').innerHTML = d.browser.launched ? '<span class="status ok">Lanzado</span>' : '<span class="status warn">Inactivo</span>';
       document.getElementById('wa-reconn').textContent = d.whatsapp.reconnectCount || 0;
       const el = document.getElementById('errors');
-      if(d.recentErrors && d.recentErrors.length){
+      if(el && d.recentErrors && d.recentErrors.length){
         el.innerHTML = d.recentErrors.slice(0,8).map(e=>\`<li><span class="badge-p">\${e.level}</span> <span class="muted">\${(e.component||'').replace(/^whatsapp\\./,'')}</span> \${e.message}</li>\`).join('');
-      } else el.innerHTML = '<li class="muted">Sin errores recientes</li>';
+      } else if(el) el.innerHTML = '<li class="muted">Sin errores recientes</li>';
 
       // QR
       try{

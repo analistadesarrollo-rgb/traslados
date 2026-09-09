@@ -237,10 +237,11 @@ function renderNumbers() {
   <p class="muted">Solo los números registrados aquí pueden solicitar traslados por WhatsApp. Se comparan los últimos 10 dígitos del número de WhatsApp contra la clave normalizada guardada.</p>
   <div class="section">
     <div class="filters">
-      <input id="n-phone" placeholder="Número (solo dígitos, con indicativo)">
+      <input id="n-phone" placeholder="Número (solo dígitos, con indicativo)" oninput="updatePreview()">
       <input id="n-label" placeholder="Etiqueta (opcional, ej: Juan Pérez)">
       <button class="btn" onclick="addNumber()">Agregar</button>
     </div>
+    <p id="n-preview" style="color:#60a5fa;font-size:0.9em;margin:4px 0 0"></p>
     <table id="tbl-numbers"><thead><tr><th>Número</th><th>Etiqueta</th><th>Agregado</th><th></th></tr></thead>
     <tbody><tr><td colspan="4" class="muted">cargando...</td></tr></tbody></table>
   </div>
@@ -260,13 +261,18 @@ function renderNumbers() {
       </tr>\`).join('');
     }catch(e){ document.querySelector('#tbl-numbers tbody').innerHTML = '<tr><td colspan="4">Error: '+e.message+'</td></tr>'; }
   }
+  function updatePreview(){
+    const phone = document.getElementById('n-phone').value.trim();
+    const el = document.getElementById('n-preview');
+    if(!phone){ el.textContent=''; return; }
+    const digits = phone.replace(/[^0-9]/g,'');
+    const normalized = digits.length > 10 ? digits.slice(-10) : digits;
+    el.textContent = 'Se guardará como: ' + normalized;
+  }
   async function addNumber(){
     const phone = document.getElementById('n-phone').value.trim();
     const label = document.getElementById('n-label').value.trim();
     if(!phone) return;
-    const digits = phone.replace(/[^0-9]/g, '');
-    const normalized = digits.length > 10 ? digits.slice(-10) : digits;
-    if (!confirm('El número se guardará como: ' + normalized + '\n¿Continuar?')) return;
     const r = await fetch('/api/allowed-numbers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -275,6 +281,7 @@ function renderNumbers() {
     if(r.ok){
       document.getElementById('n-phone').value = '';
       document.getElementById('n-label').value = '';
+      document.getElementById('n-preview').textContent = '';
       loadNumbers();
     } else {
       const d = await r.json().catch(()=>({}));

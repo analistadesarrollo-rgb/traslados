@@ -17,6 +17,21 @@ function sanitizePhone(phone) {
   return String(phone || '').replace(/[^0-9]/g, '');
 }
 
+/**
+ * Resuelve el número de teléfono real del remitente. WhatsApp multi-dispositivo
+ * a veces identifica al chat con un "@lid" (id interno) en vez del número real;
+ * el contacto expone siempre el número verdadero en `contact.number`.
+ */
+async function resolvePhoneNumber(msg) {
+  try {
+    const contact = await msg.getContact();
+    if (contact && contact.number) return sanitizePhone(contact.number);
+  } catch (_) {
+    /* ignore, se usa el fallback */
+  }
+  return sanitizePhone(msg.from);
+}
+
 async function handleIncomingMessage(msg, waClient, state) {
   // Ignorar mensajes no de texto o propios
   if (msg.fromMe) return;
@@ -28,7 +43,7 @@ async function handleIncomingMessage(msg, waClient, state) {
   if (isGroup) return;
 
   const messageId = buildMessageId(msg);
-  const phoneNumber = sanitizePhone(msg.from);
+  const phoneNumber = await resolvePhoneNumber(msg);
   const chatId = msg.from;
 
   logger.info('Nuevo mensaje de WhatsApp', {

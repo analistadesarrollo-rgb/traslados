@@ -352,4 +352,5 @@ module.exports = {
   countAllowedNumbers,
   addAllowedNumber,
   removeAllowedNumber,
+  normalizePhoneKey,
 };

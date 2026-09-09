@@ -82,7 +82,12 @@ async function handleMessage(ctx) {
   // 3) Verificar número autorizado. Solo los números registrados en la
   // tabla allowed_numbers (panel admin) pueden solicitar traslados.
   if (!repo.isAllowedNumber(phoneNumber)) {
-    logger.warn('Número no autorizado', { messageId, phoneNumber });
+    logger.warn('Número no autorizado', {
+      messageId,
+      phoneNumber,
+      normalizedPhone: repo.normalizePhoneKey(phoneNumber),
+      registeredCount: repo.countAllowedNumbers(),
+    });
     repo.createTransferRequest({
       message_id: messageId,
       phone_number: phoneNumber,

@@ -112,16 +112,20 @@ function renderDashboard() {
         el.innerHTML = d.recentErrors.slice(0,8).map(e=>\`<li><span class="badge-p">\${e.level}</span> <span class="muted">\${(e.component||'').replace(/^whatsapp\\./,'')}</span> \${e.message}</li>\`).join('');
       } else if(el) el.innerHTML = '<li class="muted">Sin errores recientes</li>';
 
-      // QR
+      // QR: solo se muestra mientras WhatsApp no está conectado.
       try{
-        const qrRes = await fetch('/api/qr');
-        if(qrRes.ok){
-          const qrData = await qrRes.json();
-          const container = document.getElementById('qr-container');
-          if(qrData.qr && qrData.qr.dataUrl){
-            container.innerHTML = '<img src="'+qrData.qr.dataUrl+'" style="max-width:300px;border:2px solid #333;border-radius:8px;" alt="QR WhatsApp"><p class="muted" style="margin-top:8px;">Escanea con WhatsApp Web</p>';
-          } else {
-            container.innerHTML = '<p class="muted">QR no disponible. WhatsApp puede estar conectado.</p>';
+        const container = document.getElementById('qr-container');
+        if(d.whatsapp.connected){
+          container.innerHTML = '<p class="muted">WhatsApp conectado. No se requiere QR.</p>';
+        } else {
+          const qrRes = await fetch('/api/qr');
+          if(qrRes.ok){
+            const qrData = await qrRes.json();
+            if(qrData.qr && qrData.qr.dataUrl){
+              container.innerHTML = '<img src="'+qrData.qr.dataUrl+'" style="max-width:300px;border:2px solid #333;border-radius:8px;" alt="QR WhatsApp"><p class="muted" style="margin-top:8px;">Escanea con WhatsApp Web</p>';
+            } else {
+              container.innerHTML = '<p class="muted">Generando QR...</p>';
+            }
           }
         }
       }catch(_){}

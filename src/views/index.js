@@ -114,7 +114,11 @@ function renderDashboard() {
       document.getElementById('wa-reconn').textContent = d.whatsapp.reconnectCount || 0;
       const el = document.getElementById('errors');
       if(el && d.recentErrors && d.recentErrors.length){
-        el.innerHTML = d.recentErrors.slice(0,8).map(e=>\`<li><span class="badge-p">\${e.level}</span> <span class="muted">\${(e.component||'').replace(/^whatsapp\\./,'')}</span> \${e.message}</li>\`).join('');
+        el.innerHTML = d.recentErrors.slice(0,8).map(e=>{
+          let metaText = '';
+          try{ if(e.meta) metaText = ' <span class="muted">'+JSON.stringify(JSON.parse(e.meta))+'</span>'; }catch(_){ }
+          return \`<li><span class="badge-p">\${e.level}</span> <span class="muted">\${(e.component||'').replace(/^whatsapp\\./,'')}</span> \${e.message}\${metaText}</li>\`;
+        }).join('');
       } else if(el) el.innerHTML = '<li class="muted">Sin errores recientes</li>';
 
       // QR: solo se muestra mientras WhatsApp no está conectado.

@@ -184,13 +184,17 @@ async function startWhatsApp(deps) {
     logger.error('Error del cliente de WhatsApp', { error: err.message });
   });
 
-  waClient.initialize().catch((err) => {
-    logger.error('Error al inicializar cliente de WhatsApp', { error: err.message });
-    // Sin esto el proceso quedaba vivo pero sin QR ni conexión, requiriendo
-    // reconstruir el proyecto manualmente. Se reinicia para que Docker
-    // reintente con un perfil limpio.
-    clearInvalidSession(err.message);
-  });
+  function initializeWithRetry(delayMs) {
+    waClient.initialize().catch((err) => {
+      logger.error('Error al inicializar cliente de WhatsApp', { error: err.message });
+      // Fallos de arranque (Chromium lento, red, etc.) son transitorios: se
+      // reintenta sin borrar la sesión para no perder un QR aún no escaneado.
+      const nextDelay = Math.min(delayMs * 2, 60000);
+      setTimeout(() => initializeWithRetry(nextDelay), delayMs);
+    });
+  }
+
+  initializeWithRetry(5000);
 
   const sender = {
     connected: () => state.connected,

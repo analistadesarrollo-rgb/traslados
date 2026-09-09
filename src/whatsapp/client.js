@@ -87,6 +87,14 @@ async function createClient() {
     authStrategy: auth,
     puppeteer: puppeteerOpts,
     takeoverOnConflict: true, // múltiples conexiones: la nueva toma el control
+    // Fija una versión de WhatsApp Web conocida y estable; sin esto, WhatsApp
+    // puede servir una versión nueva incompatible con whatsapp-web.js y
+    // romper el envío de mensajes ("... is not a function").
+    webVersionCache: {
+      type: 'remote',
+      remotePath:
+        'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1047094411-alpha.html',
+    },
   });
 
   client = waClient;

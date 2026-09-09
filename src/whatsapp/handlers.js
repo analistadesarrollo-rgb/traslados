@@ -18,18 +18,50 @@ function sanitizePhone(phone) {
 }
 
 /**
- * Resuelve el número de teléfono real del remitente. WhatsApp multi-dispositivo
- * a veces identifica al chat con un "@lid" (id interno) en vez del número real;
- * el contacto expone siempre el número verdadero en `contact.number`.
+ * Resuelve el número de teléfono real del remitente.
+ *
+ * WhatsApp multi-dispositivo a veces identifica al chat con un "@lid" (id
+ * interno) en vez del número real. Esta función intenta múltiples fuentes:
+ *  1. contact.pushName + contact.number si parece número real (>=8 dígitos)
+ *  2. msg.from si tiene formato number@c.us (no @lid)
+ *  3. Fallback: cualquier cosa que tenga >=8 dígitos
  */
 async function resolvePhoneNumber(msg) {
   try {
     const contact = await msg.getContact();
-    if (contact && contact.number) return sanitizePhone(contact.number);
+    if (contact) {
+      // contact.number puede ser un LID (@lid) o el número real
+      const num = sanitizePhone(contact.number);
+      if (num.length >= 8 && !String(contact.number || '').includes('@lid')) {
+        return num;
+      }
+      // Si number es un LID, intentar extraer del id del contacto
+      if (contact.id && contact.id._serialized) {
+        const fromId = sanitizePhone(contact.id._serialized);
+        if (fromId.length >= 8 && !String(contact.id._serialized || '').includes('@lid')) {
+          return fromId;
+        }
+      }
+    }
   } catch (_) {
-    /* ignore, se usa el fallback */
+    /* ignore */
   }
-  return sanitizePhone(msg.from);
+
+  // Fallback: msg.from
+  const from = sanitizePhone(msg.from);
+  if (from.length >= 8 && !String(msg.from || '').includes('@lid')) {
+    return from;
+  }
+
+  // Último recurso: devolver lo que sea que tengamos (LID incluido)
+  // para que al menos quede registrado en logs y BD
+  const fallback = sanitizePhone(msg.from || '');
+  logger.warn('No se pudo resolver número real del remitente, usando fallback', {
+    from: msg.from,
+    fallback,
+    isLid: String(msg.from || '').includes('@lid'),
+  });
+  return fallback;
 }
 
 async function handleIncomingMessage(msg, waClient, state) {
@@ -46,11 +78,21 @@ async function handleIncomingMessage(msg, waClient, state) {
   const phoneNumber = await resolvePhoneNumber(msg);
   const chatId = msg.from;
 
-  logger.info('Nuevo mensaje de WhatsApp', {
-    messageId,
-    from: msg.from,
-    hasBody: !!msg.body,
-  });
+  // Log detallado para diagnosticar resolución de número
+  try {
+    const contact = await msg.getContact();
+    logger.info('Contacto resuelto', {
+      messageId,
+      phoneNumber,
+      chatId,
+      contactNumber: contact ? contact.number : null,
+      contactId: contact && contact.id ? contact.id._serialized : null,
+      pushName: contact ? contact.pushName : null,
+      isLid: String(phoneNumber).includes('@lid') || String(chatId).includes('@lid'),
+    });
+  } catch (_) {
+    logger.info('Datos de mensaje', { messageId, phoneNumber, chatId });
+  }
 
   // Respuesta inmediata
   const result = await transferService.handleMessage({

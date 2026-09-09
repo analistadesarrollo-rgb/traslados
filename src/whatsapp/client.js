@@ -21,15 +21,39 @@ const logger = require('../logger').child('whatsapp');
 
 let client = null;
 let qrHandler = null;
+let reconnecting = false;
 
 function getProfileDir() {
   return path.join(config.whatsapp.sessionDir, 'session-transfer-bot');
 }
 
-async function clearInvalidSession(waClient, reason) {
-  logger.warn('Sesión de WhatsApp inválida; se generará un nuevo QR tras reiniciar', { reason });
-  // Cierra Chromium primero; si no, queda bloqueando el perfil y el próximo
-  // intento falla con "The browser is already running".
+/**
+ * Destruye y recrea el cliente sin borrar la sesión en disco.
+ * La sesión se mantiene en data/wa-session y se reutiliza al reinicializar.
+ */
+async function reconnectClient(waClient, reason) {
+  if (reconnecting) return;
+  reconnecting = true;
+  logger.warn('Intentando reconexión de WhatsApp', { reason });
+  try {
+    await waClient.destroy().catch(() => {});
+    // Esperar un momento antes de reinicializar
+    await new Promise((r) => setTimeout(r, 5000));
+    await waClient.initialize();
+    logger.info('WhatsApp reconectado correctamente');
+  } catch (err) {
+    logger.error('Error en reconexión de WhatsApp', { error: err.message });
+  } finally {
+    reconnecting = false;
+  }
+}
+
+/**
+ * Limpia la sesión SOLO cuando el usuario cierra sesión desde el celular.
+ * Destruye el cliente, borra la sesión y fuerza reinicio para nuevo QR.
+ */
+async function clearSessionLoggedOut(waClient, reason) {
+  logger.warn('Sesión cerrada desde el celular; se generará un nuevo QR', { reason });
   await waClient.destroy().catch(() => {});
   fs.rmSync(getProfileDir(), { recursive: true, force: true });
   process.exit(1);
@@ -159,7 +183,10 @@ async function startWhatsApp(deps) {
   });
 
   waClient.on('auth_failure', (message) => {
-    clearInvalidSession(waClient, message);
+    // No borrar sesión en auth_failure; intentar reconectar
+    // Si la sesión está corrupta, la reconexión fallirá y se verá en logs
+    logger.error('Fallo de autenticación de WhatsApp, intentando reconexión', { message });
+    reconnectClient(waClient, 'auth_failure');
   });
 
   waClient.on('ready', () => {
@@ -175,11 +202,15 @@ async function startWhatsApp(deps) {
     state.lastDisconnectReason = reason;
     state.reconnectCount += 1;
     logger.warn('Cliente de WhatsApp desconectado', { reason, reconnectCount: state.reconnectCount });
-    // whatsapp-web.js destruye la página interna al desconectar (logout,
-    // desvinculación desde el celular o toma de sesión); siempre se necesita
-    // una sesión nueva, así que se limpia el perfil y se reinicia el proceso
-    // para que Docker levante el contenedor con un QR nuevo.
-    clearInvalidSession(waClient, reason);
+
+    // Solo borrar sesión si el usuario cerró sesión desde el celular
+    // (loggedOut = logout explícito desde WhatsApp → Dispositivos vinculados)
+    // Para todo lo demás (error de red, timeout, etc.), reconectar sin borrar sesión
+    if (reason === 'loggedOut') {
+      clearSessionLoggedOut(waClient, reason);
+    } else {
+      reconnectClient(waClient, reason);
+    }
   });
 
   waClient.on('message', (msg) => {
@@ -198,9 +229,7 @@ async function startWhatsApp(deps) {
   function initializeWithRetry(delayMs) {
     waClient.initialize().catch(async (err) => {
       logger.error('Error al inicializar cliente de WhatsApp', { error: err.message });
-      // Cierra el navegador de este intento fallido antes de reintentar;
-      // si no, bloquea el perfil con "The browser is already running".
-      await waClient.destroy().catch(() => {});
+      // No destruir el cliente ni borrar la sesión; solo reintentar después de un delay
       const nextDelay = Math.min(delayMs * 2, 60000);
       setTimeout(() => initializeWithRetry(nextDelay), delayMs);
     });

@@ -234,7 +234,7 @@ function renderDetail(id) {
 function renderNumbers() {
   const body = `
   <h1>Números autorizados</h1>
-  <p class="muted">Solo los números registrados aquí pueden solicitar traslados por WhatsApp (el indicativo de país es opcional; se comparan los últimos 10 dígitos).</p>
+  <p class="muted">Solo los números registrados aquí pueden solicitar traslados por WhatsApp. Se comparan los últimos 10 dígitos del número de WhatsApp contra la clave normalizada guardada.</p>
   <div class="section">
     <div class="filters">
       <input id="n-phone" placeholder="Número (solo dígitos, con indicativo)">
@@ -264,6 +264,9 @@ function renderNumbers() {
     const phone = document.getElementById('n-phone').value.trim();
     const label = document.getElementById('n-label').value.trim();
     if(!phone) return;
+    const digits = phone.replace(/[^0-9]/g, '');
+    const normalized = digits.length > 10 ? digits.slice(-10) : digits;
+    if (!confirm('El número se guardará como: ' + normalized + '\n¿Continuar?')) return;
     const r = await fetch('/api/allowed-numbers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

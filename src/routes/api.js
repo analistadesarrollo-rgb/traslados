@@ -3,6 +3,7 @@
 const express = require('express');
 const config = require('../config');
 const controller = require('../controllers/dashboardController');
+const repo = require('../database/repository');
 
 /**
  * Rutas de la API del panel administrativo.
@@ -32,6 +33,13 @@ router.get('/qr', requireAuth, controller.qr);
 router.get('/allowed-numbers', requireAuth, controller.listAllowedNumbers);
 router.post('/allowed-numbers', requireAuth, controller.addAllowedNumber);
 router.delete('/allowed-numbers/:phone', requireAuth, controller.removeAllowedNumber);
+router.get('/allowed-numbers/debug', requireAuth, (req, res) => {
+  const items = repo.listAllowedNumbers().map(n => ({
+    ...n,
+    normalizedKey: repo.normalizePhoneKey(n.phone_number),
+  }));
+  res.json({ items });
+});
 router.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });

@@ -112,8 +112,9 @@ function addAllowedNumber(req, res) {
   if (!digits || digits.length < 8) {
     return res.status(400).json({ error: 'Número inválido' });
   }
+  const normalizedKey = repo.normalizePhoneKey(digits);
   repo.addAllowedNumber(digits, req.body.label || '');
-  res.status(201).json({ items: repo.listAllowedNumbers() });
+  res.status(201).json({ items: repo.listAllowedNumbers(), normalizedKey });
 }
 
 /**

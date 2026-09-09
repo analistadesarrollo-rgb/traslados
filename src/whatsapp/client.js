@@ -186,6 +186,10 @@ async function startWhatsApp(deps) {
 
   waClient.initialize().catch((err) => {
     logger.error('Error al inicializar cliente de WhatsApp', { error: err.message });
+    // Sin esto el proceso quedaba vivo pero sin QR ni conexión, requiriendo
+    // reconstruir el proyecto manualmente. Se reinicia para que Docker
+    // reintente con un perfil limpio.
+    clearInvalidSession(err.message);
   });
 
   const sender = {

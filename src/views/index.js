@@ -92,6 +92,11 @@ function renderDashboard() {
     </div>
   </div>
 
+  <div class="section">
+    <h2>Errores recientes</h2>
+    <ul id="errors"><li class="muted">cargando...</li></ul>
+  </div>
+
   <script>
   async function refresh(){
     try{

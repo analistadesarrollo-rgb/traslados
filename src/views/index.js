@@ -221,7 +221,7 @@ function renderDetail(id) {
 function renderNumbers() {
   const body = `
   <h1>Números autorizados</h1>
-  <p class="muted">Solo los números registrados aquí pueden solicitar traslados por WhatsApp. Si la lista está vacía, se usa el respaldo definido en <code>ALLOWED_PHONE_NUMBERS</code> del <code>.env</code>.</p>
+  <p class="muted">Solo los números registrados aquí pueden solicitar traslados por WhatsApp (el indicativo de país es opcional; se comparan los últimos 10 dígitos).</p>
   <div class="section">
     <div class="filters">
       <input id="n-phone" placeholder="Número (solo dígitos, con indicativo)">

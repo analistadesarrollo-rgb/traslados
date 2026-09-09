@@ -7,6 +7,16 @@ const { getDb } = require('./index');
  * Aislada para permitir migrar a MySQL/PostgreSQL sin tocar el resto.
  */
 
+/**
+ * Usa los últimos 10 dígitos como clave para que un número coincida con o
+ * sin indicativo de país (ej. WhatsApp envía 573001234567, el panel puede
+ * tener guardado 3001234567).
+ */
+function normalizePhoneKey(phone) {
+  const digits = String(phone || '').replace(/[^0-9]/g, '');
+  return digits.length > 10 ? digits.slice(-10) : digits;
+}
+
 // ---------------------------------------------------------------------
 // TRANSFER REQUESTS
 // ---------------------------------------------------------------------
@@ -295,7 +305,7 @@ function listAllowedNumbers() {
 
 function isAllowedNumber(phoneNumber) {
   const db = getDb();
-  return !!db.prepare('SELECT 1 FROM allowed_numbers WHERE phone_number = ?').get(phoneNumber);
+  return !!db.prepare('SELECT 1 FROM allowed_numbers WHERE phone_number = ?').get(normalizePhoneKey(phoneNumber));
 }
 
 function countAllowedNumbers() {
@@ -309,12 +319,12 @@ function addAllowedNumber(phoneNumber, label) {
     `INSERT INTO allowed_numbers (phone_number, label, created_at)
      VALUES (?, ?, datetime('now'))
      ON CONFLICT(phone_number) DO UPDATE SET label = excluded.label`
-  ).run(phoneNumber, label || null);
+  ).run(normalizePhoneKey(phoneNumber), label || null);
 }
 
 function removeAllowedNumber(phoneNumber) {
   const db = getDb();
-  const res = db.prepare('DELETE FROM allowed_numbers WHERE phone_number = ?').run(phoneNumber);
+  const res = db.prepare('DELETE FROM allowed_numbers WHERE phone_number = ?').run(normalizePhoneKey(phoneNumber));
   return res.changes > 0;
 }
 

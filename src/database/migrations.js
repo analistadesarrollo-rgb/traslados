@@ -95,6 +95,7 @@ const MIGRATIONS = [
       const legacyNumbers = String(process.env.ALLOWED_PHONE_NUMBERS || '')
         .split(',')
         .map((s) => s.replace(/[^0-9]/g, ''))
+        .map((digits) => (digits.length > 10 ? digits.slice(-10) : digits))
         .filter(Boolean);
       const insert = db.prepare(
         `INSERT OR IGNORE INTO allowed_numbers (phone_number) VALUES (?)`

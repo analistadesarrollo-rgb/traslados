@@ -89,6 +89,17 @@ const MIGRATIONS = [
           created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
       `);
+
+      // Migra los números heredados de ALLOWED_PHONE_NUMBERS (.env) para no
+      // perder acceso al activar la restricción por primera vez.
+      const legacyNumbers = String(process.env.ALLOWED_PHONE_NUMBERS || '')
+        .split(',')
+        .map((s) => s.replace(/[^0-9]/g, ''))
+        .filter(Boolean);
+      const insert = db.prepare(
+        `INSERT OR IGNORE INTO allowed_numbers (phone_number) VALUES (?)`
+      );
+      for (const phone of legacyNumbers) insert.run(phone);
     },
   },
 ];

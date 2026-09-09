@@ -2,7 +2,6 @@
 
 const validation = require('./validation');
 const repo = require('../database/repository');
-const config = require('../config');
 const logger = require('../logger').child('transferService');
 
 /**
@@ -80,15 +79,9 @@ async function handleMessage(ctx) {
     return { type: 'format-error', text: buildFormatErrorReply(parsed.error) };
   }
 
-  // 3) Verificar número autorizado. Los números se administran en la tabla
-  // allowed_numbers (panel admin). Si no hay ninguno registrado, se usa
-  // ALLOWED_PHONE_NUMBERS del .env como respaldo (compatibilidad).
-  const registeredCount = repo.countAllowedNumbers();
-  const isAuthorized = registeredCount > 0
-    ? repo.isAllowedNumber(phoneNumber)
-    : (config.whatsapp.allowedPhoneNumbers.length === 0 || config.whatsapp.allowedPhoneNumbers.includes(phoneNumber));
-
-  if (!isAuthorized) {
+  // 3) Verificar número autorizado. Solo los números registrados en la
+  // tabla allowed_numbers (panel admin) pueden solicitar traslados.
+  if (!repo.isAllowedNumber(phoneNumber)) {
     logger.warn('Número no autorizado', { messageId, phoneNumber });
     repo.createTransferRequest({
       message_id: messageId,

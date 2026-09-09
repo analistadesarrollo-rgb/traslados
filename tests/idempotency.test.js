@@ -13,6 +13,9 @@ const { closeDb } = require('../src/database');
 
 before(() => {
   migrate();
+  for (const phone of ['5491122334455', '549111111', '549122222', '549133333']) {
+    repo.addAllowedNumber(phone, 'test');
+  }
 });
 
 after(() => {

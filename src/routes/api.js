@@ -29,6 +29,9 @@ router.get('/dashboard', requireAuth, controller.dashboard);
 router.get('/history', requireAuth, controller.history);
 router.get('/history/:id', requireAuth, controller.historyDetail);
 router.get('/qr', requireAuth, controller.qr);
+router.get('/allowed-numbers', requireAuth, controller.listAllowedNumbers);
+router.post('/allowed-numbers', requireAuth, controller.addAllowedNumber);
+router.delete('/allowed-numbers/:phone', requireAuth, controller.removeAllowedNumber);
 router.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });

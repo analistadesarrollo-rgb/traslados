@@ -284,6 +284,40 @@ function listRecentErrors(limit = 20) {
     .all(limit);
 }
 
+// ---------------------------------------------------------------------
+// ALLOWED NUMBERS
+// ---------------------------------------------------------------------
+
+function listAllowedNumbers() {
+  const db = getDb();
+  return db.prepare('SELECT * FROM allowed_numbers ORDER BY created_at DESC').all();
+}
+
+function isAllowedNumber(phoneNumber) {
+  const db = getDb();
+  return !!db.prepare('SELECT 1 FROM allowed_numbers WHERE phone_number = ?').get(phoneNumber);
+}
+
+function countAllowedNumbers() {
+  const db = getDb();
+  return db.prepare('SELECT COUNT(*) AS c FROM allowed_numbers').get().c;
+}
+
+function addAllowedNumber(phoneNumber, label) {
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO allowed_numbers (phone_number, label, created_at)
+     VALUES (?, ?, datetime('now'))
+     ON CONFLICT(phone_number) DO UPDATE SET label = excluded.label`
+  ).run(phoneNumber, label || null);
+}
+
+function removeAllowedNumber(phoneNumber) {
+  const db = getDb();
+  const res = db.prepare('DELETE FROM allowed_numbers WHERE phone_number = ?').run(phoneNumber);
+  return res.changes > 0;
+}
+
 module.exports = {
   // transfer_requests
   createTransferRequest,
@@ -302,4 +336,10 @@ module.exports = {
   insertLog,
   listActivityLogs,
   listRecentErrors,
+  // allowed_numbers
+  listAllowedNumbers,
+  isAllowedNumber,
+  countAllowedNumbers,
+  addAllowedNumber,
+  removeAllowedNumber,
 };

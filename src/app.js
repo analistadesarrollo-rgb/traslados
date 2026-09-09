@@ -4,7 +4,7 @@ const path = require('node:path');
 const express = require('express');
 const config = require('./config');
 const { apiRouter } = require('./routes/api');
-const { renderDashboard, renderHistory, renderDetail } = require('./views');
+const { renderDashboard, renderHistory, renderDetail, renderNumbers } = require('./views');
 
 /**
  * Aplicación Express: panel administrativo + API + health checks.
@@ -30,6 +30,9 @@ function createApp() {
   });
   app.get('/history/:id', (req, res) => {
     res.send(renderDetail(req.params.id));
+  });
+  app.get('/numbers', (req, res) => {
+    res.send(renderNumbers());
   });
 
   // Estática

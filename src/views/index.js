@@ -56,6 +56,7 @@ function layout(title, body, active) {
   <strong style="color:#fff">🚛 Transfer Bot</strong>
   <a href="/" class="${active==='dash'?'active':''}">Dashboard</a>
   <a href="/history" class="${active==='hist'?'active':''}">Historial</a>
+  <a href="/numbers" class="${active==='numbers'?'active':''}">Números autorizados</a>
 </nav>
 <main>${body}</main>
 </body>
@@ -217,4 +218,61 @@ function renderDetail(id) {
   return layout('Detalle', body, 'hist');
 }
 
-module.exports = { renderDashboard, renderHistory, renderDetail, layout };
+function renderNumbers() {
+  const body = `
+  <h1>Números autorizados</h1>
+  <p class="muted">Solo los números registrados aquí pueden solicitar traslados por WhatsApp. Si la lista está vacía, se usa el respaldo definido en <code>ALLOWED_PHONE_NUMBERS</code> del <code>.env</code>.</p>
+  <div class="section">
+    <div class="filters">
+      <input id="n-phone" placeholder="Número (solo dígitos, con indicativo)">
+      <input id="n-label" placeholder="Etiqueta (opcional, ej: Juan Pérez)">
+      <button class="btn" onclick="addNumber()">Agregar</button>
+    </div>
+    <table id="tbl-numbers"><thead><tr><th>Número</th><th>Etiqueta</th><th>Agregado</th><th></th></tr></thead>
+    <tbody><tr><td colspan="4" class="muted">cargando...</td></tr></tbody></table>
+  </div>
+
+  <script>
+  async function loadNumbers(){
+    try{
+      const r = await fetch('/api/allowed-numbers'); if(!r.ok) throw new Error(r.status);
+      const d = await r.json();
+      const tb = document.querySelector('#tbl-numbers tbody');
+      if(!d.items.length){ tb.innerHTML = '<tr><td colspan="4" class="muted">Sin números registrados (todos los números están permitidos)</td></tr>'; return; }
+      tb.innerHTML = d.items.map(n => \`<tr>
+        <td>\${n.phone_number}</td>
+        <td>\${n.label||'-'}</td>
+        <td>\${(n.created_at||'').replace('T',' ')}</td>
+        <td><button class="btn" style="background:#7f1d1d" onclick="removeNumber('\${n.phone_number}')">Eliminar</button></td>
+      </tr>\`).join('');
+    }catch(e){ document.querySelector('#tbl-numbers tbody').innerHTML = '<tr><td colspan="4">Error: '+e.message+'</td></tr>'; }
+  }
+  async function addNumber(){
+    const phone = document.getElementById('n-phone').value.trim();
+    const label = document.getElementById('n-label').value.trim();
+    if(!phone) return;
+    const r = await fetch('/api/allowed-numbers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone_number: phone, label }),
+    });
+    if(r.ok){
+      document.getElementById('n-phone').value = '';
+      document.getElementById('n-label').value = '';
+      loadNumbers();
+    } else {
+      const d = await r.json().catch(()=>({}));
+      alert(d.error || 'No se pudo agregar el número');
+    }
+  }
+  async function removeNumber(phone){
+    if(!confirm('¿Eliminar el número '+phone+'?')) return;
+    await fetch('/api/allowed-numbers/'+encodeURIComponent(phone), { method: 'DELETE' });
+    loadNumbers();
+  }
+  loadNumbers();
+  </script>`;
+  return layout('Números autorizados', body, 'numbers');
+}
+
+module.exports = { renderDashboard, renderHistory, renderDetail, renderNumbers, layout };

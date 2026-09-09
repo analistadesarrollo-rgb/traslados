@@ -78,6 +78,19 @@ const MIGRATIONS = [
       `);
     },
   },
+  {
+    version: 2,
+    name: 'create allowed_numbers',
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS allowed_numbers (
+          phone_number TEXT PRIMARY KEY,
+          label TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+    },
+  },
 ];
 
 /**

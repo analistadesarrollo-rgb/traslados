@@ -97,4 +97,40 @@ function qr(req, res) {
   res.json({ qr: lastQr });
 }
 
-module.exports = { dashboard, history, historyDetail, qr, getStatusSnapshot };
+/**
+ * GET /api/allowed-numbers -> lista de números autorizados
+ */
+function listAllowedNumbers(req, res) {
+  res.json({ items: repo.listAllowedNumbers() });
+}
+
+/**
+ * POST /api/allowed-numbers -> agrega un número autorizado
+ */
+function addAllowedNumber(req, res) {
+  const digits = String(req.body.phone_number || '').replace(/[^0-9]/g, '');
+  if (!digits || digits.length < 8) {
+    return res.status(400).json({ error: 'Número inválido' });
+  }
+  repo.addAllowedNumber(digits, req.body.label || '');
+  res.status(201).json({ items: repo.listAllowedNumbers() });
+}
+
+/**
+ * DELETE /api/allowed-numbers/:phone -> elimina un número autorizado
+ */
+function removeAllowedNumber(req, res) {
+  repo.removeAllowedNumber(req.params.phone);
+  res.json({ items: repo.listAllowedNumbers() });
+}
+
+module.exports = {
+  dashboard,
+  history,
+  historyDetail,
+  qr,
+  getStatusSnapshot,
+  listAllowedNumbers,
+  addAllowedNumber,
+  removeAllowedNumber,
+};

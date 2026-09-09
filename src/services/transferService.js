@@ -80,9 +80,15 @@ async function handleMessage(ctx) {
     return { type: 'format-error', text: buildFormatErrorReply(parsed.error) };
   }
 
-  // 3) Verificar número autorizado (si está configurado)
-  const allowed = config.whatsapp.allowedPhoneNumbers;
-  if (allowed.length > 0 && !allowed.includes(phoneNumber)) {
+  // 3) Verificar número autorizado. Los números se administran en la tabla
+  // allowed_numbers (panel admin). Si no hay ninguno registrado, se usa
+  // ALLOWED_PHONE_NUMBERS del .env como respaldo (compatibilidad).
+  const registeredCount = repo.countAllowedNumbers();
+  const isAuthorized = registeredCount > 0
+    ? repo.isAllowedNumber(phoneNumber)
+    : (config.whatsapp.allowedPhoneNumbers.length === 0 || config.whatsapp.allowedPhoneNumbers.includes(phoneNumber));
+
+  if (!isAuthorized) {
     logger.warn('Número no autorizado', { messageId, phoneNumber });
     repo.createTransferRequest({
       message_id: messageId,
@@ -93,7 +99,7 @@ async function handleMessage(ctx) {
       error_message: 'Número no autorizado',
       raw_message: rawMessage,
     });
-    return { type: 'unauthorized', text: 'Número no autorizado para realizar traslados.' };
+    return { type: 'unauthorized', text: 'No estás autorizado para realizar esta petición de traslado.' };
   }
 
   // 4) Registrar solicitud PENDING

@@ -26,8 +26,11 @@ function getProfileDir() {
   return path.join(config.whatsapp.sessionDir, 'session-transfer-bot');
 }
 
-function clearInvalidSession(reason) {
+async function clearInvalidSession(waClient, reason) {
   logger.warn('Sesión de WhatsApp inválida; se generará un nuevo QR tras reiniciar', { reason });
+  // Cierra Chromium primero; si no, queda bloqueando el perfil y el próximo
+  // intento falla con "The browser is already running".
+  await waClient.destroy().catch(() => {});
   fs.rmSync(getProfileDir(), { recursive: true, force: true });
   process.exit(1);
 }
@@ -148,7 +151,7 @@ async function startWhatsApp(deps) {
   });
 
   waClient.on('auth_failure', (message) => {
-    clearInvalidSession(message);
+    clearInvalidSession(waClient, message);
   });
 
   waClient.on('ready', () => {
@@ -168,7 +171,7 @@ async function startWhatsApp(deps) {
     // desvinculación desde el celular o toma de sesión); siempre se necesita
     // una sesión nueva, así que se limpia el perfil y se reinicia el proceso
     // para que Docker levante el contenedor con un QR nuevo.
-    clearInvalidSession(reason);
+    clearInvalidSession(waClient, reason);
   });
 
   waClient.on('message', (msg) => {
@@ -185,10 +188,11 @@ async function startWhatsApp(deps) {
   });
 
   function initializeWithRetry(delayMs) {
-    waClient.initialize().catch((err) => {
+    waClient.initialize().catch(async (err) => {
       logger.error('Error al inicializar cliente de WhatsApp', { error: err.message });
-      // Fallos de arranque (Chromium lento, red, etc.) son transitorios: se
-      // reintenta sin borrar la sesión para no perder un QR aún no escaneado.
+      // Cierra el navegador de este intento fallido antes de reintentar;
+      // si no, bloquea el perfil con "The browser is already running".
+      await waClient.destroy().catch(() => {});
       const nextDelay = Math.min(delayMs * 2, 60000);
       setTimeout(() => initializeWithRetry(nextDelay), delayMs);
     });

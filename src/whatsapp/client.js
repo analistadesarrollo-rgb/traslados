@@ -138,8 +138,6 @@ async function startWhatsApp(deps) {
     startedAt: new Date().toISOString(),
   };
 
-  let initializing = false;
-
   waClient.on('qr', (qr) => {
     state.qr = qr;
     handleQr(qr);
@@ -156,7 +154,7 @@ async function startWhatsApp(deps) {
   waClient.on('ready', () => {
     state.connected = true;
     state.ready = true;
-    initializing = false;
+    global.__lastQr = null;
     logger.info('Cliente de WhatsApp listo y conectado');
   });
 
@@ -166,24 +164,11 @@ async function startWhatsApp(deps) {
     state.lastDisconnectReason = reason;
     state.reconnectCount += 1;
     logger.warn('Cliente de WhatsApp desconectado', { reason, reconnectCount: state.reconnectCount });
-    if (String(reason).toUpperCase().includes('LOGOUT')) {
-      clearInvalidSession(reason);
-      return;
-    }
-    if (state.reconnectCount <= 3) {
-      logger.info('Reintentando conexión en 5s...');
-      setTimeout(() => {
-        if (!state.ready && !initializing) {
-          initializing = true;
-          waClient.initialize().catch((err) => {
-            logger.error('Error al reconectar WhatsApp', { error: err.message });
-            initializing = false;
-          });
-        }
-      }, 5000);
-    } else {
-      logger.warn('Demasiadas reconexiones, espere y reinicie manualmente');
-    }
+    // whatsapp-web.js destruye la página interna al desconectar (logout,
+    // desvinculación desde el celular o toma de sesión); siempre se necesita
+    // una sesión nueva, así que se limpia el perfil y se reinicia el proceso
+    // para que Docker levante el contenedor con un QR nuevo.
+    clearInvalidSession(reason);
   });
 
   waClient.on('message', (msg) => {
@@ -199,10 +184,8 @@ async function startWhatsApp(deps) {
     logger.error('Error del cliente de WhatsApp', { error: err.message });
   });
 
-  initializing = true;
   waClient.initialize().catch((err) => {
     logger.error('Error al inicializar cliente de WhatsApp', { error: err.message });
-    initializing = false;
   });
 
   const sender = {

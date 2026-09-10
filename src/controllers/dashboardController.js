@@ -73,7 +73,12 @@ function history(req, res) {
     status,
     document,
   });
-  res.json({ items, total: repo.countTransferRequests({ status, document }) });
+  // Enriquecer con etiqueta del número autorizado
+  const itemsWithLabel = items.map((item) => {
+    const label = repo.getNumberLabel(item.phone_number);
+    return { ...item, caller_label: label || item.phone_number || '-' };
+  });
+  res.json({ items: itemsWithLabel, total: repo.countTransferRequests({ status, document }) });
 }
 
 /**

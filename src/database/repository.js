@@ -328,6 +328,18 @@ function removeAllowedNumber(phoneNumber) {
   return res.changes > 0;
 }
 
+/**
+ * Obtiene la etiqueta de un número autorizado.
+ * @param {string} phone
+ * @returns {string|null}
+ */
+function getNumberLabel(phone) {
+  const db = getDb();
+  const key = normalizePhoneKey(phone);
+  const row = db.prepare('SELECT label FROM allowed_numbers WHERE phone_number = ?').get(key);
+  return row && row.label ? row.label : null;
+}
+
 module.exports = {
   // transfer_requests
   createTransferRequest,
@@ -352,5 +364,6 @@ module.exports = {
   countAllowedNumbers,
   addAllowedNumber,
   removeAllowedNumber,
+  getNumberLabel,
   normalizePhoneKey,
 };

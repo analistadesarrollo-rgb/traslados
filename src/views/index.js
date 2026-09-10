@@ -160,7 +160,7 @@ function renderHistory() {
     <button class="btn" onclick="load()">Filtrar</button>
   </div>
   <table id="tbl"><thead><tr>
-    <th>Fecha</th><th>Documento</th><th>De</th><th>Hacia</th><th>Estado</th><th>Error</th><th></th>
+    <th>Fecha</th><th>Solicitante</th><th>Documento</th><th>Hacia</th><th>Estado</th><th>Error</th><th></th>
   </tr></thead><tbody><tr><td colspan="7" class="muted">cargando...</td></tr></tbody></table>
   <p class="muted" id="count"></p>
 
@@ -181,8 +181,8 @@ function renderHistory() {
         const badge = x.status==='SUCCESS'?'badge-o' : x.status==='FAILED'?'badge-f' : x.status==='PROCESSING'?'badge-p':'badge-s';
         return \`<tr>
           <td>\${(x.created_at||'').replace('T',' ')}</td>
+          <td>\${x.caller_label||'-'}</td>
           <td>\${x.document||'-'}</td>
-          <td>\${x.source_branch||'-'}</td>
           <td>\${x.destination_branch||'-'}</td>
           <td><span class="\${badge}">\${x.status}</span></td>
           <td class="muted">\${(x.error_message||'').slice(0,40)}</td>

@@ -23,7 +23,7 @@ function checkSession(req, res, next) {
       return next();
     }
   }
-  if (req.path === '/login') return next();
+  if (req.path === '/login' || req.originalUrl === '/api/health') return next();
   if (req.path.startsWith('/api/')) {
     return res.status(401).json({ error: 'Autenticación requerida' });
   }

@@ -298,4 +298,43 @@ function renderNumbers() {
   return layout('Números autorizados', body, 'numbers');
 }
 
-module.exports = { renderDashboard, renderHistory, renderDetail, renderNumbers, layout };
+function renderLogin(error) {
+  const errorMsg = error ? `<div style="background:rgba(239,68,68,.15);color:#ef4444;padding:10px;border-radius:8px;margin-bottom:14px;font-size:14px;">${error}</div>` : '';
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login - Transfer Bot</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --line:#334155; --txt:#e2e8f0; --blue:#3b82f6; }
+  * { box-sizing:border-box }
+  body { margin:0; font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--txt); display:flex; align-items:center; justify-content:center; min-height:100vh }
+  .login-box { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:40px; width:100%; max-width:380px }
+  h1 { text-align:center; font-size:24px; margin-bottom:8px }
+  .subtitle { text-align:center; color:#94a3b8; font-size:14px; margin-bottom:28px }
+  label { display:block; font-size:13px; color:#94a3b8; margin-bottom:6px }
+  input[type="text"], input[type="password"] { width:100%; padding:10px 14px; background:#0b1220; color:var(--txt); border:1px solid var(--line); border-radius:8px; font-size:15px; margin-bottom:18px }
+  input:focus { outline:none; border-color:var(--blue) }
+  button { width:100%; padding:12px; background:var(--blue); color:#fff; border:none; border-radius:8px; font-size:16px; font-weight:700; cursor:pointer }
+  button:hover { opacity:.9 }
+</style>
+</head>
+<body>
+<div class="login-box">
+  <h1>🚛 Transfer Bot</h1>
+  <p class="subtitle">Panel de administración</p>
+  ${errorMsg}
+  <form method="POST" action="/login">
+    <label>Usuario</label>
+    <input type="text" name="username" autocomplete="username" required autofocus>
+    <label>Contraseña</label>
+    <input type="password" name="password" autocomplete="current-password" required>
+    <button type="submit">Iniciar sesión</button>
+  </form>
+</div>
+</body>
+</html>`;
+}
+
+module.exports = { renderDashboard, renderHistory, renderDetail, renderNumbers, renderLogin, layout };

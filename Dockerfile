@@ -1,4 +1,4 @@
-FROM node:22-slim
+FROM node:22
 
 RUN apt-get update && apt-get install -y \
     chromium \
@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
     libxcomposite1 \
     libxdamage1 \
     libxrandr2 \
-    xdg-utils \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true

@@ -29,7 +29,7 @@ pipeline {
 
         stage('Verify') {
             steps {
-                sh 'sleep 15 && curl -sf http://localhost:3000/api/health || (docker compose logs --tail=30 && exit 1)'
+                sh 'sleep 15 && docker compose exec -T app curl -sf http://localhost:3000/api/health || (docker compose logs --tail=30 && exit 1)'
             }
         }
     }

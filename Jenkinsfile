@@ -10,7 +10,7 @@ pipeline {
         stage('Copy .env files') {
             steps {
                 withCredentials([file(credentialsId: 'ENV_TRANSFER_BOT', variable: 'ENV_FILE')]) {
-                    sh 'cp "$ENV_FILE" .env'
+                    sh 'chmod 777 . && cp "$ENV_FILE" .env'
                 }
             }
         }

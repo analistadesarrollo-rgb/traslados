@@ -57,6 +57,7 @@ function layout(title, body, active) {
   <a href="/" class="${active==='dash'?'active':''}">Dashboard</a>
   <a href="/history" class="${active==='hist'?'active':''}">Historial</a>
   <a href="/numbers" class="${active==='numbers'?'active':''}">Números autorizados</a>
+  <a href="/logout" style="margin-left:auto;color:#ef4444">Cerrar sesión</a>
 </nav>
 <main>${body}</main>
 </body>

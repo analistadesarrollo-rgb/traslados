@@ -10,7 +10,7 @@ pipeline {
         stage('Copy .env files') {
             steps {
                 withCredentials([file(credentialsId: 'ENV_TRANSFER_BOT', variable: 'ENV_FILE')]) {
-                    sh 'sudo cp "$ENV_FILE" /var/lib/jenkins/workspace/traslados/.env && sudo chmod 644 /var/lib/jenkins/workspace/traslados/.env'
+                    sh 'chmod 777 . && rm -f .env && cp "$ENV_FILE" .env'
                 }
             }
         }

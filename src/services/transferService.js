@@ -156,7 +156,9 @@ function buildFormatErrorReply(reason) {
     '⚠️ Formato incorrecto.',
     '',
     'Utilice:',
-    'TRASLADO DOCUMENTO SUCURSAL',
+    'TRASLADO',
+    'DOCUMENTO',
+    'SUCURSAL',
     '',
     `(Detalle: ${reason})`,
   ].join('\n');
@@ -172,7 +174,7 @@ function buildSuccessReply(transfer) {
     '',
     `Colocador: ${transfer.document}`,
     `Sucursal nueva: ${transfer.destination_branch || '?'}`,
-    `Hora: ${dateStr}`,
+    `Fecha y Hora: ${dateStr}`,
   ].join('\n');
 }
 

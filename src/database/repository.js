@@ -7,6 +7,11 @@ const { getDb } = require('./index');
  * Aislada para permitir migrar a MySQL/PostgreSQL sin tocar el resto.
  */
 
+/** Retorna la fecha/hora actual en America/Bogota como 'YYYY-MM-DD HH:MM:SS'. */
+function nowLocal() {
+  return new Date().toLocaleString('sv-SE', { timeZone: 'America/Bogota' }).replace('T', ' ');
+}
+
 /**
  * Usa los últimos 10 dígitos como clave para que un número coincida con o
  * sin indicativo de país (ej. WhatsApp envía 573001234567, el panel puede
@@ -28,7 +33,7 @@ function createTransferRequest(req) {
       `INSERT INTO transfer_requests
          (message_id, phone_number, document, source_branch,
           destination_branch, status, error_message, raw_message, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       req.message_id,
@@ -38,7 +43,8 @@ function createTransferRequest(req) {
       req.destination_branch,
       req.status || 'PENDING',
       req.error_message || null,
-      req.raw_message || null
+      req.raw_message || null,
+      nowLocal()
     );
   return res.lastInsertRowid;
 }
@@ -77,7 +83,8 @@ function updateTransferRequest(id, fields) {
   }
   if (fields.status) {
     // siempre actualizar updated_at cuando cambia el status
-    sets.push('updated_at = datetime(\'now\')');
+    sets.push('updated_at = ?');
+    params.push(nowLocal());
   }
   if (sets.length === 0) return false;
   params.push(id);
@@ -158,9 +165,9 @@ function enqueueJob(entry) {
   const res = db
     .prepare(
       `INSERT INTO job_queue (request_id, document, payload, status, priority, created_at)
-       VALUES (?, ?, ?, 'PENDING', ?, datetime('now'))`
+       VALUES (?, ?, ?, 'PENDING', ?, ?)`
     )
-    .run(entry.request_id, entry.document, entry.payload, entry.priority || 0);
+    .run(entry.request_id, entry.document, entry.payload, entry.priority || 0, nowLocal());
   return { id: res.lastInsertRowid, duplicated: false };
 }
 
@@ -219,10 +226,10 @@ function claimNextJob(owner, leaseMs) {
       .prepare(
         `UPDATE job_queue
             SET status='PROCESSING', lock_owner=?, lease_until=?,
-                started_at=datetime('now'), attempts=attempts+1
+                started_at=?, attempts=attempts+1
           WHERE id=? AND status='PENDING'`
       )
-      .run(owner, leaseUntil, candidate.id);
+      .run(owner, leaseUntil, nowLocal(), candidate.id);
 
     if (res.changes === 0) return null;
 
@@ -235,9 +242,9 @@ function markJobDone(id, payload = null) {
   db.prepare(
     `UPDATE job_queue
         SET status='DONE', lock_owner=NULL, lease_until=NULL,
-            completed_at=datetime('now'), error=NULL, payload=?
+            completed_at=?, error=NULL, payload=?
       WHERE id=?`
-  ).run(JSON.stringify(payload || {}), id);
+  ).run(JSON.stringify(payload || {}), nowLocal(), id);
 }
 
 function markJobFailed(id, error) {
@@ -245,9 +252,9 @@ function markJobFailed(id, error) {
   db.prepare(
     `UPDATE job_queue
         SET status='FAILED', lock_owner=NULL, lease_until=NULL,
-            completed_at=datetime('now'), error=?
+            completed_at=?, error=?
       WHERE id=?`
-  ).run(String(error || '').slice(0, 2000), id);
+  ).run(nowLocal(), String(error || '').slice(0, 2000), id);
 }
 
 // ---------------------------------------------------------------------
@@ -258,13 +265,14 @@ function insertLog(level, component, message, meta, requestId) {
   const db = getDb();
   db.prepare(
     `INSERT INTO activity_logs (level, component, message, meta, request_id, created_at)
-     VALUES (?, ?, ?, ?, ?, datetime('now'))`
+     VALUES (?, ?, ?, ?, ?, ?)`
   ).run(
     level,
     component || null,
     String(message),
     meta ? JSON.stringify(meta) : null,
-    requestId || null
+    requestId || null,
+    nowLocal()
   );
 }
 
@@ -317,9 +325,9 @@ function addAllowedNumber(phoneNumber, label) {
   const db = getDb();
   db.prepare(
     `INSERT INTO allowed_numbers (phone_number, label, created_at)
-     VALUES (?, ?, datetime('now'))
+     VALUES (?, ?, ?)
      ON CONFLICT(phone_number) DO UPDATE SET label = excluded.label`
-  ).run(normalizePhoneKey(phoneNumber), label || null);
+  ).run(normalizePhoneKey(phoneNumber), label || null, nowLocal());
 }
 
 function removeAllowedNumber(phoneNumber) {

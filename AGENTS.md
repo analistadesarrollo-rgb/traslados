@@ -1,65 +1,77 @@
 # AGENTS.md
 
-WhatsApp bot that automates employee transfers between branches via a real web system (Puppeteer). Commands arrive as WhatsApp messages (`TRASLADO <DOC> <SUCURSAL>`).
+Bot de WhatsApp que automatiza los traslados de empleados (colocadores) entre sucursales en BusinessNET vía Puppeteer. Los comandos llegan como mensajes WhatsApp con formato `TRASLADO`, `DOCUMENTO` y `SUCURSAL` en líneas separadas.
 
-## Key commands
+## Comandos principales
 
 ```bash
-npm install              # install deps
-npm run db:init          # init SQLite schema (run once)
-npm start                # run all (web + worker + whatsapp)
-npm test                 # all tests (node --test)
-npm run test:unit        # unit tests only (no browser)
-npm run test:parser      # parser/validation only
-node --test tests/automation.integration.test.js  # e2e with Puppeteer + mock HTML
+npm install                 # instalar dependencias
+npm run db:init             # inicializar schema SQLite (una vez)
+npm start                   # arrancar todo (web + worker + whatsapp)
+npm test                    # todos los tests (node --test)
+npm run test:unit           # solo unitarios (sin browser)
+npm run test:parser         # solo parser/validación
+node --test tests/automation.integration.test.js  # e2e con Puppeteer + mock HTML
 ```
 
-No build step. No TypeScript. No linter configured.
+No hay build step. No TypeScript. No linter configurado.
 
-## Runtime requirements
+## Requisitos de ejecución
 
-- **Node ≥ 22.5** (uses native `node:sqlite`)
-- **Chrome or Chromium** installed (Puppeteer automation)
-- `.env` file with `WEB_SYSTEM_USER`, `WEB_SYSTEM_PASSWORD`, `ADMIN_PASSWORD` filled in
-- `npm run db:init` before first run
+- **Node ≥ 22.5** (usa `node:sqlite` nativo)
+- **Chrome o Chromium** instalado (Puppeteer)
+- Archivo `.env` con `WEB_SYSTEM_USER`, `WEB_SYSTEM_PASSWORD`, `ADMIN_PASSWORD` configurados
+- `npm run db:init` antes del primer arranque
 
-## Architecture (4 components, one entrypoint)
+## Arquitectura (4 componentes, una entrada)
 
-`src/index.js` runs one or more modes via flags (`--web`, `--worker`, `--whatsapp`):
+`src/index.js` ejecuta uno o más modos con flags (`--web`, `--worker`, `--whatsapp`):
 
-1. **WhatsApp client** (`whatsapp-web.js`, LocalAuth) → receives commands
-2. **TransferService** → parses, validates, enqueues (idempotent by `message_id`)
-3. **Queue + Worker** → SQLite-backed (`job_queue` table), document-level locking, lease/expiry
-4. **Automation** → Puppeteer against the real web system (login, search, close shift, create shift)
+1. **WhatsApp Client** (`whatsapp-web.js`, LocalAuth) → recibe comandos
+2. **TransferService** → parsea, valida, encola (idempotente por `message_id`)
+3. **Queue + Worker** → SQLite (`tabla job_queue`), lock atómico por documento, lease/expiry
+4. **Automation** → Puppeteer contra el sistema web real (login, buscar, editar turno, verificar)
 
-## Critical business rule
+## Regla de negocio crítica
 
-Shift verification is non-negotiable: **before** creating a new shift there must be **exactly 0** active shifts; **after** creating, **exactly 1**. If close verification fails, the new shift is **not** created and an error is returned. Never bypass this check.
+Verificación de turnos innegociable: **antes** de editar debe haber exactamente **1** turno activo; **después** de editar, se verifica que el turno activo tenga la sucursal destino correcta. Si la verificación falla, la transferencia se marca como `FAILED` con error `CONSISTENCY`. Nunca omitir esta verificación.
 
-## Web selectors
+## Selectores web
 
-All Puppeteer selectors for the target web system (BusinessNET / JSF + PrimeFaces) are centralized in `src/config/selectors.js`. They were originally `{{ TBD }}` placeholders — verify they match the current state of the target system before assuming automation will work. If selectors are wrong, the bot returns `AUTOMATION_NOT_CONFIGURED`.
+Todos los selectores Puppeteer para el sistema web objetivo (BusinessNET / JSF + PrimeFaces) están centralizados en `src/config/selectors.js`. Verificar que coincidan con el estado actual del sistema antes de asumir que la automatización funcionará.
 
-## Testing notes
+## Notas de testing
 
-- Tests use `node:test` (native runner), no external test framework.
-- E2e tests run against `tests/mock/web-system.html` (local mock), **not** the real web system. No credentials needed for tests.
-- If `node --test tests/` fails on Node 24, use `npm test` (has the correct glob pattern).
+- Tests usan `node:test` (runner nativo), sin framework externo.
+- Los tests e2e corren contra `tests/mock/web-system.html` (mock local), **no** contra el sistema web real. No necesitan credenciales.
+- Si `node --test tests/` falla en Node 24, usar `npm test` (tiene el glob correcto).
 
 ## Docker
 
-- Dockerfile uses `node:22-slim` + Chromium. `CHROME_PATH=/usr/bin/chromium`.
-- `docker-compose.yml` uses `network_mode: host` so the container reaches the internal web system (`192.168.60.66:8090`).
-- Volumes: `data/` (WhatsApp session + SQLite), `logs/`, `screenshots/`.
-- Nginx sidecar on network `red-gane-int` for production proxy.
+- Dockerfile usa `node:22-slim` + Chromium. `CHROME_PATH=/usr/bin/chromium`.
+- `docker-compose.yml`: App + Nginx en red `red-gane-int` (externa).
+- Volumes: `data/` (sesión WhatsApp + SQLite), `logs/`, `screenshots/`.
+- Timezone: `America/Bogota`.
 
 ## CI/CD
 
-Jenkins pipeline (`Jenkinsfile`): copies `.env` from Jenkins credentials, rebuilds Docker Compose, verifies health endpoint after 10s.
+Jenkins pipeline (`Jenkinsfile`): copia `.env` desde credenciales Jenkins, ejecuta `docker compose up -d --build`, verifica health con curl dentro del contenedor.
 
-## Common gotchas
+## Errores comunes
 
-- `AUTOMATION_NOT_CONFIGURED` → missing selectors in `src/config/selectors.js` or missing `WEB_SYSTEM_*` in `.env`
-- QR code needed only on first WhatsApp connection (stored in `data/wa-session`)
-- `ALLOWED_PHONE_NUMBERS` empty = all numbers allowed
-- `WORKER_CONCURRENCY` should stay at 1 (document-level locking assumption)
+- `AUTOMATION_NOT_CONFIGURED` → selectores faltantes en `src/config/selectors.js` o `WEB_SYSTEM_*` faltante en `.env`
+- QR necesario solo en la primera conexión de WhatsApp (se persiste en `data/wa-session`)
+- `ALLOWED_PHONE_NUMBERS` vacío = todos los números permitidos
+- `WORKER_CONCURRENCY` debe mantenerse en 1 (supuesto de lock por documento)
+
+## Autenticación del panel admin
+
+- Login con cookie HMAC-SHA256 (HttpOnly, SameSite=Strict, 24h)
+- Credenciales desde `.env`: `ADMIN_USER` / `ADMIN_PASSWORD`
+- `/api/health` no requiere autenticación
+
+## Comando de despliegue
+
+```bash
+docker compose up -d --build
+```

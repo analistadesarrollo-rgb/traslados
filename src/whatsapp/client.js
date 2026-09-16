@@ -9,60 +9,120 @@ const logger = require('../logger').child('whatsapp');
 /**
  * Cliente de WhatsApp Web (whatsapp-web.js).
  *
- * Características clave:
- *  - LocalAuth: la sesión se persiste en disco (data/wa-session). El QR solo
- *    debe escanearse la primera vez; en reinicios/desconexiones la sesión se
- *    reutiliza y NO es necesario volver a escanear.
- *  - Reconexión automática: se registran los eventos de desconexión y el
- *    cliente intenta reconectarse.
- *  - Carga diferida: la dependencia del cliente se resuelve dentro de la
- *    función para poder usar el bot solo con --whatsapp o integrado.
+ * Estrategia de disponibilidad 24/7:
+ *  - LocalAuth: sesión persiste en disco (data/wa-session).
+ *  - Keepalive: ping cada 30s para detectar desconexiones tempranas.
+ *  - Reconexión con backoff exponencial (5s → 10s → 20s → 40s → 60s).
+ *  - Si falla 5 veces consecutivas, limpia sesión y reinicia para nuevo QR.
+ *  - Limpieza de lockfiles de Chrome antes de cada reconexión.
+ *  - takeoverOnConflict: si hay otra sesión activa, esta la toma.
  */
 
 let client = null;
 let qrHandler = null;
 let reconnecting = false;
+let keepaliveInterval = null;
+let intentosReconexion = 0;
+const MAX_INTENTOS_RECONEXION = 5;
+const KEEPALIVE_MS = 30_000;
+const BACKOFF_BASE_MS = 5_000;
 
 function getProfileDir() {
   return path.join(config.whatsapp.sessionDir, 'session-transfer-bot');
 }
 
-/**
- * Destruye y recrea el cliente sin borrar la sesión en disco.
- * La sesión se mantiene en data/wa-session y se reutiliza al reinicializar.
- */
-async function reconnectClient(waClient, reason) {
+function limpiarLockfiles() {
+  const profileDir = getProfileDir();
+  for (const file of ['SingletonCookie', 'SingletonLock', 'SingletonSocket']) {
+    fs.rmSync(path.join(profileDir, file), { force: true });
+  }
+}
+
+function limpiarSesion() {
+  try {
+    const dir = getProfileDir();
+    if (fs.existsSync(dir)) {
+      fs.rmSync(dir, { recursive: true, force: true });
+      logger.warn('Sesión de WhatsApp eliminada de disco');
+    }
+  } catch (err) {
+    logger.error('Error al limpiar sesión', { error: err.message });
+  }
+}
+
+function iniciarKeepalive(waClient, state) {
+  if (keepaliveInterval) clearInterval(keepaliveInterval);
+  keepaliveInterval = setInterval(async () => {
+    if (!state.connected) return;
+    try {
+      await waClient.ping();
+    } catch (err) {
+      logger.warn('Keepalive ping falló, forzando reconexión', { error: err.message });
+      if (state.connected && !reconnecting) {
+        state.connected = false;
+        state.ready = false;
+        reconectarConBackoff(waClient, state, 'keepalive_failed');
+      }
+    }
+  }, KEEPALIVE_MS);
+}
+
+function detenerKeepalive() {
+  if (keepaliveInterval) {
+    clearInterval(keepaliveInterval);
+    keepaliveInterval = null;
+  }
+}
+
+async function reconectarConBackoff(waClient, state, reason) {
   if (reconnecting) return;
   reconnecting = true;
-  logger.warn('Intentando reconexión de WhatsApp', { reason });
+  intentosReconexion++;
+
+  const delay = Math.min(BACKOFF_BASE_MS * Math.pow(2, intentosReconexion - 1), 60_000);
+  logger.warn('Intentando reconexión de WhatsApp', {
+    reason,
+    intento: intentosReconexion,
+    maxIntentos: MAX_INTENTOS_RECONEXION,
+    esperandoMs: delay,
+  });
+
   try {
+    await new Promise((r) => setTimeout(r, delay));
     await waClient.destroy().catch(() => {});
-    // Esperar un momento antes de reinicializar
-    await new Promise((r) => setTimeout(r, 5000));
+    await new Promise((r) => setTimeout(r, 2000));
+    limpiarLockfiles();
     await waClient.initialize();
+    intentosReconexion = 0;
     logger.info('WhatsApp reconectado correctamente');
   } catch (err) {
-    logger.error('Error en reconexión de WhatsApp', { error: err.message });
+    logger.error('Error en reconexión de WhatsApp', {
+      error: err.message,
+      intento: intentosReconexion,
+    });
+
+    if (intentosReconexion >= MAX_INTENTOS_RECONEXION) {
+      logger.error('Máximo de reconexiones alcanzado. Limpiando sesión para nuevo QR');
+      detenerKeepalive();
+      limpiarSesion();
+      process.exit(1);
+    }
+
+    reconnecting = false;
+    reconectarConBackoff(waClient, state, reason);
   } finally {
     reconnecting = false;
   }
 }
 
-/**
- * Limpia la sesión SOLO cuando el usuario cierra sesión desde el celular.
- * Destruye el cliente, borra la sesión y fuerza reinicio para nuevo QR.
- */
 async function clearSessionLoggedOut(waClient, reason) {
   logger.warn('Sesión cerrada desde el celular; se generará un nuevo QR', { reason });
+  detenerKeepalive();
   await waClient.destroy().catch(() => {});
-  fs.rmSync(getProfileDir(), { recursive: true, force: true });
+  limpiarSesion();
   process.exit(1);
 }
 
-/**
- * Configura un callback para recibir el QR como imagen/terminal.
- * @param {(qrDataUrl:string, terminal:string)=>void} handler
- */
 function onQr(handler) {
   qrHandler = handler;
 }
@@ -71,21 +131,13 @@ function resolveClientModule() {
   return require('whatsapp-web.js');
 }
 
-/**
- * Crea el cliente de WhatsApp con sesión persistente (LocalAuth).
- * @returns {Promise<{client:object, connected:boolean}>}
- */
 async function createClient() {
   const { Client, LocalAuth } = resolveClientModule();
 
   if (client) return client;
 
   fs.mkdirSync(config.whatsapp.sessionDir, { recursive: true });
-
-  const profileDir = getProfileDir();
-  for (const file of ['SingletonCookie', 'SingletonLock', 'SingletonSocket']) {
-    fs.rmSync(path.join(profileDir, file), { force: true });
-  }
+  limpiarLockfiles();
 
   const auth = new LocalAuth({
     clientId: 'transfer-bot',
@@ -97,23 +149,26 @@ async function createClient() {
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-extensions',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-background-networking',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
     ],
   };
   const browserPath = config.whatsapp.browserPath || config.automation.chromePath;
   if (browserPath && fs.existsSync(browserPath)) {
     puppeteerOpts.executablePath = browserPath;
-    puppeteerOpts.headless = true;
-  } else {
-    puppeteerOpts.headless = true;
   }
+  puppeteerOpts.headless = true;
 
   const waClient = new Client({
     authStrategy: auth,
     puppeteer: puppeteerOpts,
-    takeoverOnConflict: true, // múltiples conexiones: la nueva toma el control
-    // Fija una versión de WhatsApp Web conocida y estable; sin esto, WhatsApp
-    // puede servir una versión nueva incompatible con whatsapp-web.js y
-    // romper el envío de mensajes ("... is not a function").
+    takeoverOnConflict: true,
     webVersionCache: {
       type: 'remote',
       remotePath:
@@ -125,9 +180,6 @@ async function createClient() {
   return client;
 }
 
-/**
- * Detector de QR: recibe el string del código QR y lo emite al handler.
- */
 function handleQr(qr) {
   logger.warn('QR recibido, escanee con WhatsApp Web para vincular');
   let term = '';
@@ -136,7 +188,6 @@ function handleQr(qr) {
   } catch (_) {
     term = qr;
   }
-  let dataUrl = '';
   try {
     qrcode.toDataURL(qr, { width: 300, margin: 2 }, (err, url) => {
       try {
@@ -144,7 +195,6 @@ function handleQr(qr) {
       } catch (_) {
         /* ignore */
       }
-      // persistencia del último QR para el panel admin
       global.__lastQr = { dataUrl: url || '', term, at: new Date().toISOString() };
     });
   } catch (_) {
@@ -152,15 +202,6 @@ function handleQr(qr) {
   }
 }
 
-/**
- * Inicia la conexión de WhatsApp con todos los manejadores de eventos
- * para persistencia y reconexión automática. Devuelve un objeto de estado
- * que se expone al panel admin y al worker.
- *
- * @param {object} deps
- * @param {function} deps.onMessage callback(message, client) para mensajes.
- * @returns {Promise<object>} estado observable {connected, ready}
- */
 async function startWhatsApp(deps) {
   const waClient = await createClient();
 
@@ -180,20 +221,23 @@ async function startWhatsApp(deps) {
 
   waClient.on('authenticated', () => {
     logger.info('WhatsApp autenticado');
+    intentosReconexion = 0;
   });
 
   waClient.on('auth_failure', (message) => {
-    // No borrar sesión en auth_failure; intentar reconectar
-    // Si la sesión está corrupta, la reconexión fallirá y se verá en logs
-    logger.error('Fallo de autenticación de WhatsApp, intentando reconexión', { message });
-    reconnectClient(waClient, 'auth_failure');
+    logger.error('Fallo de autenticación de WhatsApp', { message });
+    reconectarConBackoff(waClient, state, 'auth_failure');
   });
 
   waClient.on('ready', () => {
     state.connected = true;
     state.ready = true;
+    state.qr = null;
     global.__lastQr = null;
+    intentosReconexion = 0;
+    reconectando = false;
     logger.info('Cliente de WhatsApp listo y conectado');
+    iniciarKeepalive(waClient, state);
   });
 
   waClient.on('disconnected', (reason) => {
@@ -201,15 +245,16 @@ async function startWhatsApp(deps) {
     state.ready = false;
     state.lastDisconnectReason = reason;
     state.reconnectCount += 1;
-    logger.warn('Cliente de WhatsApp desconectado', { reason, reconnectCount: state.reconnectCount });
+    detenerKeepalive();
+    logger.warn('Cliente de WhatsApp desconectado', {
+      reason,
+      reconnectCount: state.reconnectCount,
+    });
 
-    // Solo borrar sesión si el usuario cerró sesión desde el celular
-    // (loggedOut = logout explícito desde WhatsApp → Dispositivos vinculados)
-    // Para todo lo demás (error de red, timeout, etc.), reconectar sin borrar sesión
     if (reason === 'loggedOut') {
       clearSessionLoggedOut(waClient, reason);
     } else {
-      reconnectClient(waClient, reason);
+      reconectarConBackoff(waClient, state, reason);
     }
   });
 
@@ -226,16 +271,21 @@ async function startWhatsApp(deps) {
     logger.error('Error del cliente de WhatsApp', { error: err.message });
   });
 
-  function initializeWithRetry(delayMs) {
-    waClient.initialize().catch(async (err) => {
-      logger.error('Error al inicializar cliente de WhatsApp', { error: err.message });
-      // No destruir el cliente ni borrar la sesión; solo reintentar después de un delay
-      const nextDelay = Math.min(delayMs * 2, 60000);
-      setTimeout(() => initializeWithRetry(nextDelay), delayMs);
-    });
+  async function initializeWithRetry(attempt) {
+    try {
+      await waClient.initialize();
+    } catch (err) {
+      const delay = Math.min(5000 * Math.pow(2, attempt), 60_000);
+      logger.error('Error al inicializar WhatsApp, reintentando', {
+        error: err.message,
+        attempt: attempt + 1,
+        retryMs: delay,
+      });
+      setTimeout(() => initializeWithRetry(attempt + 1), delay);
+    }
   }
 
-  initializeWithRetry(5000);
+  initializeWithRetry(0);
 
   const sender = {
     connected: () => state.connected,
@@ -258,7 +308,6 @@ function formatChatId(phoneNumber) {
 }
 
 function getState() {
-  // Para el panel admin: expone el estado global si está corriendo
   return global.__waState || { connected: false, ready: false };
 }
 

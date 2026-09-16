@@ -13,6 +13,10 @@ const repo = require('../database/repository');
 function requireAuth(req, res, next) {
   if (!config.admin.password) return next();
 
+  // 1. Cookie de sesión (login via formulario)
+  if (req.authenticatedUser) return next();
+
+  // 2. Basic Auth (API clients)
   const auth = req.headers.authorization || '';
   const b64 = auth.startsWith('Basic ') ? auth.slice(6) : '';
   const decoded = Buffer.from(b64, 'base64').toString('utf8');
@@ -20,6 +24,7 @@ function requireAuth(req, res, next) {
   if (user === config.admin.user && pass === config.admin.password) {
     return next();
   }
+
   res.set('WWW-Authenticate', 'Basic realm="admin"');
   return res.status(401).json({ error: 'Autenticación requerida' });
 }

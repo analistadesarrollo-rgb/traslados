@@ -29,6 +29,7 @@ let messageHandler = null;
 let waState = null;
 
 const MAX_INTENTOS_RECONEXION = 6;
+const MAX_INTENTOS_INICIALIZACION = 6;
 const KEEPALIVE_MS = 30_000;
 const BACKOFF_BASE_MS = 5_000;
 
@@ -387,14 +388,31 @@ async function startWhatsApp(deps) {
     try {
       await client.initialize();
     } catch (err) {
+      if (attempt >= MAX_INTENTOS_INICIALIZACION - 1) {
+        logger.fatal('No se pudo inicializar WhatsApp tras varios intentos. Reiniciando proceso limpio', {
+          intentos: MAX_INTENTOS_INICIALIZACION,
+        });
+        // El reinicio limpio (Docker restart:always) reutiliza la sesión
+        // persistida en disco: NO requiere re-escanear QR.
+        await destruirNavegador(client).catch(() => {});
+        limpiarLockfiles();
+        process.exit(1);
+        return;
+      }
       const delay = Math.min(5000 * Math.pow(2, attempt), 30_000);
       logger.error('Error al inicializar WhatsApp, reintentando', {
         error: err.message,
         attempt: attempt + 1,
         retryMs: delay,
       });
+      // Destruir el navegador que pudo quedar a medias y recrear el cliente:
+      // evita acumular procesos Chrome que bloquean el userDataDir.
+      await destruirNavegador(client).catch(() => {});
       limpiarLockfiles();
-      setTimeout(() => initializeWithRetry(attempt + 1), delay);
+      setTimeout(() => {
+        client = buildClient();
+        initializeWithRetry(attempt + 1);
+      }, delay);
     }
   }
 

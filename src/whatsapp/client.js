@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { execSync } = require('node:child_process');
 const qrcode = require('qrcode');
 const config = require('../config');
 const logger = require('../logger').child('whatsapp');
@@ -10,12 +11,13 @@ const logger = require('../logger').child('whatsapp');
  * Cliente de WhatsApp Web (whatsapp-web.js).
  *
  * Estrategia de disponibilidad 24/7:
- *  - LocalAuth: sesión persiste en disco (data/wa-session).
- *  - Keepalive: ping cada 30s para detectar desconexiones tempranas.
- *  - Reconexión con backoff exponencial (5s → 10s → 20s → 40s → 60s).
- *  - Si falla 5 veces consecutivas, limpia sesión y reinicia para nuevo QR.
- *  - Limpieza de lockfiles de Chrome antes de cada reconexión.
- *  - takeoverOnConflict: si hay otra sesión activa, esta la toma.
+ *  - LocalAuth: la sesión persiste en disco (data/wa-session).
+ *  - Keepalive con getState(): detecta páginas/sesiones muertas temprano.
+ *  - Reconexión: destruye el navegador, MATA procesos Chrome huérfanos del
+ *    perfil y crea un cliente NUEVO (no reusa el mismo objeto).
+ *  - Backoff exponencial sin límite destructivo: NUNCA borra la sesión salvo
+ *    que el usuario cierre sesión explícitamente desde el celular.
+ *  - Limpieza de lockfiles Singleton de Chrome antes de cada inicialización.
  */
 
 let client = null;
@@ -23,7 +25,10 @@ let qrHandler = null;
 let reconnecting = false;
 let keepaliveInterval = null;
 let intentosReconexion = 0;
-const MAX_INTENTOS_RECONEXION = 5;
+let messageHandler = null;
+let waState = null;
+
+const MAX_INTENTOS_RECONEXION = 6;
 const KEEPALIVE_MS = 30_000;
 const BACKOFF_BASE_MS = 5_000;
 
@@ -38,30 +43,86 @@ function limpiarLockfiles() {
   }
 }
 
-function limpiarSesion() {
+/**
+ * Mata los procesos de Chrome que aún tengan abierto el perfil de WhatsApp.
+ * Esto resuelve el error "The browser is already running for ..." que ocurre
+ * cuando un Chrome muerto deja bloqueado el userDataDir al reconectar.
+ */
+function matarProcesosHuerfanos() {
+  const profile = getProfileDir().replace(/\\/g, '/');
   try {
-    const dir = getProfileDir();
-    if (fs.existsSync(dir)) {
-      fs.rmSync(dir, { recursive: true, force: true });
-      logger.warn('Sesión de WhatsApp eliminada de disco');
+    if (process.platform === 'win32') {
+      const out = execSync(
+        `powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \\"Name='chrome.exe'\\" | Where-Object { ($_.CommandLine -ne $null) -and ($_.CommandLine -like '*${profile}*') } | ForEach-Object { $_.ProcessId }"`,
+        { encoding: 'utf8', windowsHide: true }
+      ).toString();
+      const pids = (out.match(/\d+/g) || []).filter(
+        (p) => Number(p) && Number(p) !== process.pid
+      );
+      for (const pid of pids) {
+        try {
+          process.kill(Number(pid), 'SIGKILL');
+          logger.warn('Chrome huérfano terminado', { pid: Number(pid) });
+        } catch (_) {}
+      }
+    } else {
+      const out = execSync(`pgrep -f "${profile}"`, {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).toString();
+      const pids = (out.match(/\d+/g) || []).filter(
+        (p) => Number(p) && Number(p) !== process.pid
+      );
+      for (const pid of pids) {
+        try {
+          process.kill(Number(pid), 'SIGKILL');
+          logger.warn('Proceso Chrome huérfano terminado', { pid: Number(pid) });
+        } catch (_) {}
+      }
     }
-  } catch (err) {
-    logger.error('Error al limpiar sesión', { error: err.message });
+  } catch (_) {
+    // Sin procesos huérfanos o sin permiso para listarlos: OK.
   }
 }
 
-function iniciarKeepalive(waClient, state) {
+/**
+ * Destruye el navegador del cliente actual, forzando el kill del proceso
+ * si la conexión de Puppeteer ya está muerta (browser.close() no funcionaría).
+ */
+async function destruirNavegador(wc) {
+  if (!wc) return;
+  try {
+    const browser = wc.pupBrowser;
+    if (browser) {
+      try {
+        const proc = browser.process && browser.process();
+        if (proc && typeof proc.kill === 'function' && !proc.killed) {
+          proc.kill('SIGKILL');
+        }
+      } catch (_) {}
+    }
+  } catch (_) {}
+  await wc.destroy().catch(() => {});
+}
+
+function dormir(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function iniciarKeepalive(state) {
   if (keepaliveInterval) clearInterval(keepaliveInterval);
   keepaliveInterval = setInterval(async () => {
     if (!state.connected) return;
     try {
-      await waClient.ping();
+      await client.getState();
     } catch (err) {
-      logger.warn('Keepalive ping falló, forzando reconexión', { error: err.message });
+      logger.warn('Keepalive detectó sesión muerta, forzando reconexión', {
+        error: err.message,
+      });
       if (state.connected && !reconnecting) {
         state.connected = false;
         state.ready = false;
-        reconectarConBackoff(waClient, state, 'keepalive_failed');
+        reconectar('keepalive_failed');
       }
     }
   }, KEEPALIVE_MS);
@@ -74,52 +135,74 @@ function detenerKeepalive() {
   }
 }
 
-async function reconectarConBackoff(waClient, state, reason) {
+/**
+ * Reconexión robusta:
+ *  1. Matar el navegador actual (incluido SIGKILL del proceso).
+ *  2. Matar procesos Chrome huérfanos que bloqueen el perfil.
+ *  3. Limpiar lockfiles Singleton.
+ *  4. Crear un cliente NUEVO y reinicializar.
+ * Backoff exponencial; si revienta, se sigue reintentando SIN borrar la sesión.
+ */
+async function reconectar(reason) {
   if (reconnecting) return;
   reconnecting = true;
   intentosReconexion++;
 
-  const delay = Math.min(BACKOFF_BASE_MS * Math.pow(2, intentosReconexion - 1), 60_000);
-  logger.warn('Intentando reconexión de WhatsApp', {
+  const delay = Math.min(
+    BACKOFF_BASE_MS * Math.pow(2, intentosReconexion - 1),
+    60_000
+  );
+  logger.warn('Reconectando WhatsApp', {
     reason,
     intento: intentosReconexion,
-    maxIntentos: MAX_INTENTOS_RECONEXION,
     esperandoMs: delay,
   });
 
   try {
-    await new Promise((r) => setTimeout(r, delay));
-    await waClient.destroy().catch(() => {});
-    await new Promise((r) => setTimeout(r, 2000));
+    await dormir(delay);
+    await destruirNavegador(client);
+    matarProcesosHuerfanos();
     limpiarLockfiles();
-    await waClient.initialize();
+
+    client = buildClient();
+    await client.initialize();
     intentosReconexion = 0;
     logger.info('WhatsApp reconectado correctamente');
   } catch (err) {
-    logger.error('Error en reconexión de WhatsApp', {
+    logger.error('Fallo en reconexión de WhatsApp', {
       error: err.message,
       intento: intentosReconexion,
     });
-
     if (intentosReconexion >= MAX_INTENTOS_RECONEXION) {
-      logger.error('Máximo de reconexiones alcanzado. Limpiando sesión para nuevo QR');
-      detenerKeepalive();
-      limpiarSesion();
-      process.exit(1);
+      intentosReconexion = 0;
+      logger.warn('Reintentando ciclo de reconexión sin borrar la sesión');
     }
-
+    const próximoDelay = Math.min(
+      BACKOFF_BASE_MS * Math.pow(2, intentosReconexion),
+      60_000
+    );
     reconnecting = false;
-    reconectarConBackoff(waClient, state, reason);
-  } finally {
-    reconnecting = false;
+    setTimeout(() => reconectar(reason), próximoDelay);
+    return;
   }
+  reconnecting = false;
 }
 
-async function clearSessionLoggedOut(waClient, reason) {
-  logger.warn('Sesión cerrada desde el celular; se generará un nuevo QR', { reason });
+async function clearSessionLoggedOut(wc, reason) {
+  logger.warn('Sesión cerrada desde el celular; se generará un nuevo QR', {
+    reason,
+  });
   detenerKeepalive();
-  await waClient.destroy().catch(() => {});
-  limpiarSesion();
+  await destruirNavegador(wc);
+  try {
+    const dir = getProfileDir();
+    if (fs.existsSync(dir)) {
+      fs.rmSync(dir, { recursive: true, force: true });
+      logger.warn('Sesión de WhatsApp eliminada de disco');
+    }
+  } catch (err) {
+    logger.error('Error al limpiar sesión', { error: err.message });
+  }
   process.exit(1);
 }
 
@@ -131,10 +214,34 @@ function resolveClientModule() {
   return require('whatsapp-web.js');
 }
 
-async function createClient() {
-  const { Client, LocalAuth } = resolveClientModule();
+function handleQr(qr) {
+  logger.warn('QR recibido, escanee con WhatsApp Web para vincular');
+  let term = '';
+  try {
+    term = qrcode.toString(qr, { type: 'terminal', small: true });
+  } catch (_) {
+    term = qr;
+  }
+  try {
+    qrcode.toDataURL(qr, { width: 300, margin: 2 }, (err, url) => {
+      try {
+        if (qrHandler) qrHandler(url || '', term);
+      } catch (_) {
+        /* ignore */
+      }
+      global.__lastQr = { dataUrl: url || '', term, at: new Date().toISOString() };
+    });
+  } catch (_) {
+    /* ignore */
+  }
+}
 
-  if (client) return client;
+/**
+ * Crea un cliente de WhatsApp y registra TODOS los handlers de eventos.
+ * Cada reconexión crea una instancia nueva (evita estado corrupto).
+ */
+function buildClient() {
+  const { Client, LocalAuth } = resolveClientModule();
 
   fs.mkdirSync(config.whatsapp.sessionDir, { recursive: true });
   limpiarLockfiles();
@@ -176,46 +283,8 @@ async function createClient() {
     },
   });
 
-  client = waClient;
-  return client;
-}
-
-function handleQr(qr) {
-  logger.warn('QR recibido, escanee con WhatsApp Web para vincular');
-  let term = '';
-  try {
-    term = qrcode.toString(qr, { type: 'terminal', small: true });
-  } catch (_) {
-    term = qr;
-  }
-  try {
-    qrcode.toDataURL(qr, { width: 300, margin: 2 }, (err, url) => {
-      try {
-        if (qrHandler) qrHandler(url || '', term);
-      } catch (_) {
-        /* ignore */
-      }
-      global.__lastQr = { dataUrl: url || '', term, at: new Date().toISOString() };
-    });
-  } catch (_) {
-    /* ignore */
-  }
-}
-
-async function startWhatsApp(deps) {
-  const waClient = await createClient();
-
-  const state = {
-    connected: false,
-    ready: false,
-    qr: null,
-    lastDisconnectReason: null,
-    reconnectCount: 0,
-    startedAt: new Date().toISOString(),
-  };
-
   waClient.on('qr', (qr) => {
-    state.qr = qr;
+    waState.qr = qr;
     handleQr(qr);
   });
 
@@ -226,42 +295,41 @@ async function startWhatsApp(deps) {
 
   waClient.on('auth_failure', (message) => {
     logger.error('Fallo de autenticación de WhatsApp', { message });
-    reconectarConBackoff(waClient, state, 'auth_failure');
+    reconectar('auth_failure');
   });
 
   waClient.on('ready', () => {
-    state.connected = true;
-    state.ready = true;
-    state.qr = null;
+    waState.connected = true;
+    waState.ready = true;
+    waState.qr = null;
     global.__lastQr = null;
     intentosReconexion = 0;
-    reconectando = false;
     logger.info('Cliente de WhatsApp listo y conectado');
-    iniciarKeepalive(waClient, state);
+    iniciarKeepalive(waState);
   });
 
   waClient.on('disconnected', (reason) => {
-    state.connected = false;
-    state.ready = false;
-    state.lastDisconnectReason = reason;
-    state.reconnectCount += 1;
+    waState.connected = false;
+    waState.ready = false;
+    waState.lastDisconnectReason = reason;
+    waState.reconnectCount += 1;
     detenerKeepalive();
     logger.warn('Cliente de WhatsApp desconectado', {
       reason,
-      reconnectCount: state.reconnectCount,
+      reconnectCount: waState.reconnectCount,
     });
 
-    if (reason === 'loggedOut') {
+    if (reason === 'loggedOut' || reason === 'LOGOUT') {
       clearSessionLoggedOut(waClient, reason);
     } else {
-      reconectarConBackoff(waClient, state, reason);
+      reconectar(reason);
     }
   });
 
   waClient.on('message', (msg) => {
-    if (!deps.onMessage) return;
+    if (!messageHandler) return;
     try {
-      deps.onMessage(msg, waClient, state);
+      messageHandler(msg, waClient, waState);
     } catch (err) {
       logger.error('Error en manejador de mensaje', { error: err.message });
     }
@@ -271,16 +339,55 @@ async function startWhatsApp(deps) {
     logger.error('Error del cliente de WhatsApp', { error: err.message });
   });
 
+  return waClient;
+}
+
+/**
+ * Inicia la conexión de WhatsApp. Crea el cliente, registra eventos y lanza
+ * la inicialización con reintentos (matando Chrome huérfano en cada intento).
+ *
+ * @param {object} deps
+ * @param {function} deps.onMessage callback(message, client, state)
+ * @returns {Promise<{client:object, state:object, sender:object}>}
+ */
+async function createClient() {
+  if (client) return client;
+
+  fs.mkdirSync(config.whatsapp.sessionDir, { recursive: true });
+  matarProcesosHuerfanos();
+  limpiarLockfiles();
+  client = buildClient();
+  return client;
+}
+
+async function startWhatsApp(deps) {
+  messageHandler = deps.onMessage || null;
+
+  if (!waState) {
+    waState = {
+      connected: false,
+      ready: false,
+      qr: null,
+      lastDisconnectReason: null,
+      reconnectCount: 0,
+      startedAt: new Date().toISOString(),
+    };
+  }
+
+  await createClient();
+
   async function initializeWithRetry(attempt) {
     try {
-      await waClient.initialize();
+      await client.initialize();
     } catch (err) {
-      const delay = Math.min(5000 * Math.pow(2, attempt), 60_000);
+      const delay = Math.min(5000 * Math.pow(2, attempt), 30_000);
       logger.error('Error al inicializar WhatsApp, reintentando', {
         error: err.message,
         attempt: attempt + 1,
         retryMs: delay,
       });
+      matarProcesosHuerfanos();
+      limpiarLockfiles();
       setTimeout(() => initializeWithRetry(attempt + 1), delay);
     }
   }
@@ -288,14 +395,14 @@ async function startWhatsApp(deps) {
   initializeWithRetry(0);
 
   const sender = {
-    connected: () => state.connected,
+    connected: () => waState.connected,
     sendText: async (phoneNumber, text) => {
       const chatId = formatChatId(phoneNumber);
-      await waClient.sendMessage(chatId, String(text));
+      await client.sendMessage(chatId, String(text));
     },
   };
 
-  return { client: waClient, state, sender };
+  return { client, state: waState, sender };
 }
 
 function formatChatId(phoneNumber) {

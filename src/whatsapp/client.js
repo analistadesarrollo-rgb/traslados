@@ -44,11 +44,41 @@ function limpiarLockfiles() {
 }
 
 /**
- * Mata los procesos de Chrome que aún tengan abierto el perfil de WhatsApp.
- * Esto resuelve el error "The browser is already running for ..." que ocurre
- * cuando un Chrome muerto deja bloqueado el userDataDir al reconectar.
+ * Destruye el navegador del cliente actual, forzando el kill del proceso
+ * si la conexión de Puppeteer ya está muerta (browser.close() no funcionaría).
+ * Solo mata el proceso del propio navegador, nunca otros Chrome.
  */
-function matarProcesosHuerfanos() {
+async function destruirNavegador(wc) {
+  if (!wc) return;
+  let pid = null;
+  try {
+    const browser = wc.pupBrowser;
+    if (browser) {
+      try {
+        const proc = browser.process && browser.process();
+        pid = proc && proc.pid ? proc.pid : null;
+      } catch (_) {}
+    }
+  } catch (_) {}
+  await wc.destroy().catch(() => {});
+  // Si tras destroy el proceso sigue vivo, matarlo por PID (solo el nuestro).
+  if (pid) {
+    try {
+      process.kill(pid, 'SIGKILL');
+      logger.debug('Navegador WhatsApp cerrado por PID', { pid });
+    } catch (_) {
+      // ya no existía, OK
+    }
+  }
+}
+
+/**
+ * Solo se usa al arrancar el proceso: limpia lockfiles y procesos Chrome
+ * restantes de una ejecución anterior que quedaron muertos en el disco
+ * (común tras un kill -9 o caída del contenedor).
+ */
+function limpiarEstadoArranque() {
+  limpiarLockfiles();
   const profile = getProfileDir().replace(/\\/g, '/');
   try {
     if (process.platform === 'win32') {
@@ -62,11 +92,10 @@ function matarProcesosHuerfanos() {
       for (const pid of pids) {
         try {
           process.kill(Number(pid), 'SIGKILL');
-          logger.warn('Chrome huérfano terminado', { pid: Number(pid) });
         } catch (_) {}
       }
     } else {
-      const out = execSync(`pgrep -f "${profile}"`, {
+      const out = execSync(`pgrep -f "${profile}" || true`, {
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'ignore'],
       }).toString();
@@ -76,33 +105,12 @@ function matarProcesosHuerfanos() {
       for (const pid of pids) {
         try {
           process.kill(Number(pid), 'SIGKILL');
-          logger.warn('Proceso Chrome huérfano terminado', { pid: Number(pid) });
         } catch (_) {}
       }
     }
   } catch (_) {
-    // Sin procesos huérfanos o sin permiso para listarlos: OK.
+    // Sin procesos restantes o sin permiso: OK.
   }
-}
-
-/**
- * Destruye el navegador del cliente actual, forzando el kill del proceso
- * si la conexión de Puppeteer ya está muerta (browser.close() no funcionaría).
- */
-async function destruirNavegador(wc) {
-  if (!wc) return;
-  try {
-    const browser = wc.pupBrowser;
-    if (browser) {
-      try {
-        const proc = browser.process && browser.process();
-        if (proc && typeof proc.kill === 'function' && !proc.killed) {
-          proc.kill('SIGKILL');
-        }
-      } catch (_) {}
-    }
-  } catch (_) {}
-  await wc.destroy().catch(() => {});
 }
 
 function dormir(ms) {
@@ -111,19 +119,20 @@ function dormir(ms) {
 
 function iniciarKeepalive(state) {
   if (keepaliveInterval) clearInterval(keepaliveInterval);
-  keepaliveInterval = setInterval(async () => {
+  keepaliveInterval = setInterval(() => {
     if (!state.connected) return;
+    let ok = false;
     try {
-      await client.getState();
-    } catch (err) {
-      logger.warn('Keepalive detectó sesión muerta, forzando reconexión', {
-        error: err.message,
-      });
-      if (state.connected && !reconnecting) {
-        state.connected = false;
-        state.ready = false;
-        reconectar('keepalive_failed');
-      }
+      const browser = client.pupBrowser;
+      ok = !!(browser && (typeof browser.isConnected === 'function' ? browser.isConnected() : true));
+    } catch (_) {
+      ok = false;
+    }
+    if (!ok && state.connected && !reconnecting) {
+      logger.warn('Keepalive detectó navegador desconectado, forzando reconexión');
+      state.connected = false;
+      state.ready = false;
+      reconectar('keepalive_failed');
     }
   }, KEEPALIVE_MS);
 }
@@ -161,7 +170,6 @@ async function reconectar(reason) {
   try {
     await dormir(delay);
     await destruirNavegador(client);
-    matarProcesosHuerfanos();
     limpiarLockfiles();
 
     client = buildClient();
@@ -354,8 +362,7 @@ async function createClient() {
   if (client) return client;
 
   fs.mkdirSync(config.whatsapp.sessionDir, { recursive: true });
-  matarProcesosHuerfanos();
-  limpiarLockfiles();
+  limpiarEstadoArranque();
   client = buildClient();
   return client;
 }
@@ -386,7 +393,6 @@ async function startWhatsApp(deps) {
         attempt: attempt + 1,
         retryMs: delay,
       });
-      matarProcesosHuerfanos();
       limpiarLockfiles();
       setTimeout(() => initializeWithRetry(attempt + 1), delay);
     }

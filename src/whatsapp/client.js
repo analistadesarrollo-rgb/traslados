@@ -25,7 +25,9 @@ const logger = require('../logger').child('whatsapp');
  *  - Keepalive basado en `browser.isConnected()`: no fuerza reconexiones por
  *    recargas de página ni evalua JS.
  *  - Backoff exponencial sin límite destructivo: NUNCA borra la sesión salvo
- *    que el usuario cierre sesión explícitamente desde el celular.
+ *    que el usuario cierre sesión explícitamente desde el celular. Si el
+ *    respaldo restaurado también falla al inicializar, se borran perfil y
+ *    respaldo y el reinicio limpio muestra un QR nuevo para volver a vincular.
  */
 
 let client = null;
@@ -386,6 +388,9 @@ function buildClient() {
       '--disable-renderer-backgrounding',
       '--disable-session-crashed-bubble',
     ],
+    // Evita "Runtime.callFunctionOn timed out" al cargar WhatsApp Web con una
+    // sesión guardada que el servidor ya no reconoce (cerrada en el celular).
+    protocolTimeout: 120_000,
   };
   const browserPath = config.whatsapp.browserPath || config.automation.chromePath;
   if (browserPath && fs.existsSync(browserPath)) {
@@ -529,13 +534,41 @@ async function startWhatsApp(deps) {
         restaurarSesion();
       }
       if (attempt >= MAX_INTENTOS_INICIALIZACION - 1) {
-        logger.fatal('No se pudo inicializar WhatsApp tras varios intentos. Reiniciando proceso limpio', {
-          intentos: MAX_INTENTOS_INICIALIZACION,
-        });
-        // El reinicio limpio (Docker restart:always) reutiliza la sesión
-        // persistida en disco: NO requiere re-escanear QR.
         await destruirNavegador(client).catch(() => {});
         limpiarLockfiles();
+        if (seIntentoRestaurar) {
+          // Ya se restauró el respaldo y aun así no conectó: la sesión quedó
+          // cerrada desde el celular (inválida en el servidor de WhatsApp) y
+          // ni el perfil ni el respaldo sirven. Se borran AMBOS para que el
+          // reinicio limpio muestre un QR nuevo en lugar de reintentar una
+          // sesión muerta hasta el infinito.
+          logger.error(
+            'Sesión de WhatsApp cerrada desde el celular; perfil y respaldo obsoletos',
+            {}
+          );
+          try {
+            const dir = getProfileDir();
+            if (fs.existsSync(dir)) {
+              fs.rmSync(dir, { recursive: true, force: true });
+              logger.warn('Perfil de sesión eliminado para generar QR');
+            }
+            const bak = getBackupDir();
+            if (fs.existsSync(bak)) {
+              fs.rmSync(bak, { recursive: true, force: true });
+              logger.warn('Respaldo obsoleto eliminado para generar QR');
+            }
+          } catch (err) {
+            logger.error('Error al limpiar sesión obsoleta', {
+              error: err.message,
+            });
+          }
+        }
+        logger.fatal(
+          'No se pudo inicializar WhatsApp tras varios intentos. Reiniciando para generar QR',
+          { intentos: MAX_INTENTOS_INICIALIZACION }
+        );
+        // El reinicio limpio (Docker restart:always) reutiliza la sesión si
+        // aún es válida; si se limpió (caso anterior), genera un QR nuevo.
         process.exit(1);
         return;
       }

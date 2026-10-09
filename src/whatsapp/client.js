@@ -45,9 +45,44 @@ const MAX_INTENTOS_INICIALIZACION = 6;
 const KEEPALIVE_MS = 30_000;
 const BACKOFF_BASE_MS = 5_000;
 const RESPALDO_INTERVALO_MS = 6 * 60 * 60 * 1000;
-// Versión de WhatsApp Web compatible (repo wppconnect-team/wa-version).
-// Sobrescribible con WA_WVERSION si el pin queda desactualizado.
-const WA_VVERSION = process.env.WA_WVERSION || '2.3000.1048354754-alpha';
+// Versión de WhatsApp Web (repo wppconnect-team/wa-version). Se resuelve
+// dinámicamente al arrancar usando la versión vigente del repo; si no se
+// puede consultar, se usa WA_WVERSION (env) o el pin por defecto.
+const WA_WVERSION_PIN = '2.3000.1049861608-alpha';
+let WA_VVERSION = process.env.WA_WVERSION || WA_WVERSION_PIN;
+
+/**
+ * Resuelve la versión vigente de WhatsApp Web desde el repo wa-version.
+ * Valida que el HTML de esa versión exista antes de adoptarla. Si no hay
+ * consulta remota, deja la versión tal cual (env o pin por defecto).
+ */
+async function resolverVersionWeb() {
+  if (process.env.WA_WVERSION) {
+    return;
+  }
+  try {
+    const base =
+      'https://raw.githubusercontent.com/wppconnect-team/wa-version/main';
+    const res = await fetch(`${base}/versions.json`, {
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const version = data && data.currentVersion;
+    if (typeof version !== 'string' || !version) return;
+    const check = await fetch(`${base}/html/${version}.html`, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!check.ok) return;
+    WA_VVERSION = version;
+    logger.info('Versión de WhatsApp Web resuelta dinámicamente', { version });
+  } catch (err) {
+    logger.warn('No se pudo resolver la versión de WhatsApp Web', {
+      error: err.message,
+    });
+  }
+}
 
 function getProfileDir() {
   return path.join(config.whatsapp.sessionDir, 'session-transfer-bot');
@@ -515,6 +550,7 @@ async function startWhatsApp(deps) {
     };
   }
 
+  await resolverVersionWeb();
   await createClient();
 
   async function initializeWithRetry(attempt) {

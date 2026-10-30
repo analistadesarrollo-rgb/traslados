@@ -8,6 +8,7 @@ const { startServer } = require('./app');
 const whatsapp = require('./whatsapp/client');
 const handlers = require('./whatsapp/handlers');
 const { startWorker } = require('./queue/worker');
+const scheduler = require('./scheduler');
 
 logger.bindRepo(repo);
 
@@ -58,6 +59,8 @@ async function main() {
     worker = startWorker({ sender });
     worker.start();
     global.__workerRunning = true;
+    // El planificador encola los traslados programados; el worker los ejecuta.
+    scheduler.start();
   }
 
   logger.info('Transfer Bot arrancado correctamente');
@@ -67,6 +70,7 @@ async function main() {
     if (shuttingDown) return;
     shuttingDown = true;
     logger.info('Deteniendo aplicación', { signal });
+    scheduler.stop();
     if (worker) worker.stop();
     if (server) await new Promise((r) => server.close(r));
     if (waClient) {

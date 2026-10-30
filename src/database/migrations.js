@@ -103,6 +103,92 @@ const MIGRATIONS = [
       for (const phone of legacyNumbers) insert.run(phone);
     },
   },
+  {
+    version: 3,
+    name: 'create users, schedules, schedule_audit; extend transfer_requests',
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT NOT NULL,
+          password_hash TEXT NOT NULL,
+          password_salt TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'scheduler',
+          display_name TEXT,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username
+          ON users (username);
+      `);
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS schedules (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          document TEXT NOT NULL,
+          destination_branch TEXT NOT NULL,
+          scheduled_date TEXT NOT NULL,          -- YYYY-MM-DD (America/Bogota)
+          scheduled_time TEXT NOT NULL,          -- HH:MM (America/Bogota)
+          scheduled_at_utc TEXT NOT NULL,        -- instante absoluto en UTC
+          timezone TEXT NOT NULL DEFAULT 'America/Bogota',
+          status TEXT NOT NULL DEFAULT 'SCHEDULED',
+          created_by_user_id INTEGER,
+          created_by_username TEXT NOT NULL,
+          request_id INTEGER,
+          job_id INTEGER,
+          late INTEGER NOT NULL DEFAULT 0,
+          dispatched_at TEXT,
+          executed_at TEXT,
+          result_message TEXT,
+          error_message TEXT,
+          cancelled_at TEXT,
+          cancelled_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT,
+          FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
+          FOREIGN KEY (request_id) REFERENCES transfer_requests(id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_schedules_status ON schedules (status);
+        CREATE INDEX IF NOT EXISTS idx_schedules_due ON schedules (scheduled_at_utc);
+        CREATE INDEX IF NOT EXISTS idx_schedules_user ON schedules (created_by_user_id);
+        CREATE INDEX IF NOT EXISTS idx_schedules_document ON schedules (document);
+        -- Evita duplicados: no puede haber dos programaciones vivas (no
+        -- canceladas ni fallidas) para el mismo documento+sucursal+instante.
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_schedules_unique_active
+          ON schedules (document, destination_branch, scheduled_at_utc)
+          WHERE status IN ('SCHEDULED','QUEUED','PROCESSING','SUCCESS');
+      `);
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS schedule_audit (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          schedule_id INTEGER NOT NULL,
+          action TEXT NOT NULL,
+          actor_username TEXT,
+          actor_user_id INTEGER,
+          details TEXT,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_schedule_audit_schedule
+          ON schedule_audit (schedule_id);
+      `);
+
+      // Origen/usuario responsable de cada traslado (WhatsApp vs panel).
+      // ALTER TABLE ADD COLUMN con DEFAULT es seguro sobre datos existentes.
+      db.exec(`
+        ALTER TABLE transfer_requests ADD COLUMN origin TEXT NOT NULL DEFAULT 'whatsapp';
+      `);
+      db.exec(`
+        ALTER TABLE transfer_requests ADD COLUMN created_by_username TEXT;
+      `);
+      db.exec(`
+        ALTER TABLE transfer_requests ADD COLUMN schedule_id INTEGER;
+      `);
+    },
+  },
 ];
 
 /**

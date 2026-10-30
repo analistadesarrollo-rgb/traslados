@@ -76,6 +76,17 @@ const config = {
     password: process.env.ADMIN_PASSWORD || '',
   },
 
+  scheduler: {
+    enabled: boolEnv('SCHEDULER_ENABLED', true),
+    pollIntervalMs: intEnv('SCHEDULER_POLL_INTERVAL_MS', 30000),
+    batchSize: intEnv('SCHEDULER_BATCH_SIZE', 50),
+    // Una ejecución se marca "retrasada" si se despacha más de este tiempo
+    // después de la hora programada (reinicios, caídas, etc.).
+    lateThresholdMs: intEnv('SCHEDULER_LATE_THRESHOLD_MS', 90000),
+  },
+
+  timezone: process.env.APP_TIMEZONE || 'America/Bogota',
+
   logging: {
     level: process.env.LOG_LEVEL || 'info',
     dir: path.resolve(root, process.env.LOG_DIR || './logs'),

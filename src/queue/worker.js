@@ -86,8 +86,7 @@ function startWorker(deps) {
         source_branch: result.sourceBranch,
         destination_branch: tr.destination_branch,
       });
-      const replyTo = payload.chatId || payload.phoneNumber;
-      await safeSend(sender, replyTo, reply);
+      await notifyIfNeeded(sender, payload, reply);
       logger.info('Traslado realizado', { requestId, jobId: job.id });
     } else {
       repo.updateTransferRequest(requestId, {
@@ -98,8 +97,7 @@ function startWorker(deps) {
       repo.markJobFailed(job.id, result.error);
       const tr = repo.getTransferRequestById(requestId);
       const reply = buildErrorReply(result, tr);
-      const replyTo = payload.chatId || payload.phoneNumber;
-      await safeSend(sender, replyTo, reply);
+      await notifyIfNeeded(sender, payload, reply);
       logger.info('Traslado fallido', { requestId, jobId: job.id, code: result.errorCode });
     }
 
@@ -162,6 +160,17 @@ function buildErrorReply(result, tr) {
     default:
       return transferService.buildFailureReply(tr, result.error);
   }
+}
+
+/**
+ * Envía la respuesta de WhatsApp solo si el job proviene de WhatsApp.
+ * Los traslados programados desde el panel llevan `notify:false` para no
+ * intentar escribirle a un número inexistente.
+ */
+async function notifyIfNeeded(sender, payload, text) {
+  if (payload.notify === false) return;
+  const replyTo = payload.chatId || payload.phoneNumber;
+  await safeSend(sender, replyTo, text);
 }
 
 async function safeSend(sender, phone, text) {

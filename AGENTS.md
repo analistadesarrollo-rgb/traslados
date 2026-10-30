@@ -66,9 +66,25 @@ Jenkins pipeline (`Jenkinsfile`): copia `.env` desde credenciales Jenkins, ejecu
 
 ## Autenticación del panel admin
 
-- Login con cookie HMAC-SHA256 (HttpOnly, SameSite=Strict, 24h)
-- Credenciales desde `.env`: `ADMIN_USER` / `ADMIN_PASSWORD`
-- `/api/health` no requiere autenticación
+- Login con cookie firmada HMAC-SHA256 (HttpOnly, SameSite=Strict, 24h). El token incluye usuario/rol y se revalida contra la BD en cada request.
+- Administrador principal desde `.env`: `ADMIN_USER` / `ADMIN_PASSWORD` (no vive en la tabla `users`, no se puede deshabilitar).
+- Usuarios adicionales en la tabla `users`, con roles `admin` y `scheduler`. Contraseñas con `scrypt` + salt (`node:crypto`), nunca en texto plano.
+- `/api/health` no requiere autenticación. El resto de `/api/*` acepta cookie o Basic Auth.
+
+## Usuarios y programación de traslados
+
+- Migración v3 crea `users`, `schedules` y `schedule_audit`, y agrega `origin`, `created_by_username` y `schedule_id` a `transfer_requests`.
+- El rol `scheduler` solo ve/gestiona sus propias programaciones; `admin` ve todas. La UI oculta funciones administrativas a `scheduler` y la API responde 403.
+- `scheduled_at_utc` guarda el instante absoluto calculado desde hora de Bogotá (UTC-5). La validación rechaza fechas/horas pasadas.
+- El planificador (`src/scheduler/index.js`) corre en el proceso worker: despacha `SCHEDULED -> QUEUED` de forma atómica e idempotente (transacción + `message_id = sched:<id>` + índice único parcial) y sincroniza el estado con `transfer_requests`.
+- Los traslados programados reutilizan la cola/worker/automatización existentes. El job lleva `notify:false` para no intentar enviar WhatsApp.
+- Si el servidor estuvo apagado, la programación vencida se despacha al arrancar y se marca `late=1` (visible en la UI).
+- Variables: `SCHEDULER_ENABLED`, `SCHEDULER_POLL_INTERVAL_MS`, `SCHEDULER_BATCH_SIZE`, `SCHEDULER_LATE_THRESHOLD_MS`, `APP_TIMEZONE`.
+
+## Inconsistencias conocidas (documentación vs código)
+
+- `src/config/selectors.js` describe el traslado como "eliminar horario origen + agregar horario destino", pero `src/automation/index.js` usa `shifts.closeCurrentShift()` (edita la sucursal del turno activo). `addNewShift()` existe pero el orquestador no lo usa.
+- `.env.example` tenía `WORKER_CONcurrency` (corregido a `WORKER_CONCURRENCY`).
 
 ## Comando de despliegue
 

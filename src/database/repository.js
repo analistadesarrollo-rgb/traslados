@@ -32,8 +32,9 @@ function createTransferRequest(req) {
     .prepare(
       `INSERT INTO transfer_requests
          (message_id, phone_number, document, source_branch,
-          destination_branch, status, error_message, raw_message, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          destination_branch, status, error_message, raw_message,
+          origin, created_by_username, schedule_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       req.message_id,
@@ -44,6 +45,9 @@ function createTransferRequest(req) {
       req.status || 'PENDING',
       req.error_message || null,
       req.raw_message || null,
+      req.origin || 'whatsapp',
+      req.created_by_username || null,
+      req.schedule_id || null,
       nowLocal()
     );
   return res.lastInsertRowid;
@@ -348,6 +352,409 @@ function getNumberLabel(phone) {
   return row && row.label ? row.label : null;
 }
 
+// ---------------------------------------------------------------------
+// USERS
+// ---------------------------------------------------------------------
+
+function createUser(user) {
+  const db = getDb();
+  const res = db
+    .prepare(
+      `INSERT INTO users
+         (username, password_hash, password_salt, role, display_name,
+          enabled, created_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      user.username,
+      user.password_hash,
+      user.password_salt,
+      user.role || 'scheduler',
+      user.display_name || null,
+      user.enabled === undefined ? 1 : (user.enabled ? 1 : 0),
+      user.created_by || null,
+      nowLocal()
+    );
+  return res.lastInsertRowid;
+}
+
+/** Devuelve la fila completa (incluye hash/salt). Solo para autenticación. */
+function findUserByUsername(username) {
+  const db = getDb();
+  return db.prepare('SELECT * FROM users WHERE username = ?').get(username) || null;
+}
+
+function findUserById(id) {
+  const db = getDb();
+  return db.prepare('SELECT * FROM users WHERE id = ?').get(id) || null;
+}
+
+/** Listado seguro: nunca expone hash/salt. */
+function listUsers() {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT id, username, role, display_name, enabled, created_by,
+              created_at, updated_at
+         FROM users ORDER BY id ASC`
+    )
+    .all();
+}
+
+function updateUser(id, fields) {
+  const db = getDb();
+  const allowed = [
+    'username',
+    'password_hash',
+    'password_salt',
+    'role',
+    'display_name',
+    'enabled',
+  ];
+  const sets = [];
+  const params = [];
+  for (const key of allowed) {
+    if (key in fields) {
+      sets.push(`${key} = ?`);
+      params.push(fields[key]);
+    }
+  }
+  if (sets.length === 0) return false;
+  sets.push('updated_at = ?');
+  params.push(nowLocal());
+  params.push(id);
+  const res = db.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+  return res.changes > 0;
+}
+
+function countUsers() {
+  const db = getDb();
+  return db.prepare('SELECT COUNT(*) AS c FROM users').get().c;
+}
+
+// ---------------------------------------------------------------------
+// SCHEDULES (programación automática de traslados)
+// ---------------------------------------------------------------------
+
+function createSchedule(s) {
+  const db = getDb();
+  const res = db
+    .prepare(
+      `INSERT INTO schedules
+         (document, destination_branch, scheduled_date, scheduled_time,
+          scheduled_at_utc, timezone, status, created_by_user_id,
+          created_by_username, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'SCHEDULED', ?, ?, ?)`
+    )
+    .run(
+      s.document,
+      s.destination_branch,
+      s.scheduled_date,
+      s.scheduled_time,
+      s.scheduled_at_utc,
+      s.timezone || 'America/Bogota',
+      s.created_by_user_id || null,
+      s.created_by_username,
+      nowLocal()
+    );
+  return res.lastInsertRowid;
+}
+
+function getScheduleById(id) {
+  const db = getDb();
+  return db.prepare('SELECT * FROM schedules WHERE id = ?').get(id) || null;
+}
+
+function listSchedules(opts = {}) {
+  const db = getDb();
+  const {
+    limit = 100,
+    offset = 0,
+    status,
+    document,
+    date,
+    userId,
+    isAdmin = false,
+  } = opts;
+  const where = [];
+  const params = [];
+  if (!isAdmin) {
+    where.push('created_by_user_id = ?');
+    params.push(userId);
+  }
+  if (status) {
+    where.push('status = ?');
+    params.push(status);
+  }
+  if (document) {
+    where.push('document = ?');
+    params.push(document);
+  }
+  if (date) {
+    where.push('scheduled_date = ?');
+    params.push(date);
+  }
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  params.push(limit, offset);
+  return db
+    .prepare(
+      `SELECT * FROM schedules ${whereSql}
+        ORDER BY scheduled_at_utc DESC, id DESC LIMIT ? OFFSET ?`
+    )
+    .all(...params);
+}
+
+function countSchedules(opts = {}) {
+  const db = getDb();
+  const { status, document, date, userId, isAdmin = false } = opts;
+  const where = [];
+  const params = [];
+  if (!isAdmin) {
+    where.push('created_by_user_id = ?');
+    params.push(userId);
+  }
+  if (status) {
+    where.push('status = ?');
+    params.push(status);
+  }
+  if (document) {
+    where.push('document = ?');
+    params.push(document);
+  }
+  if (date) {
+    where.push('scheduled_date = ?');
+    params.push(date);
+  }
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const row = db
+    .prepare(`SELECT COUNT(*) AS c FROM schedules ${whereSql}`)
+    .get(...params);
+  return row ? row.c : 0;
+}
+
+/** Solo permite modificar programaciones aún no despachadas. */
+function updateSchedule(id, fields) {
+  const db = getDb();
+  const allowed = [
+    'document',
+    'destination_branch',
+    'scheduled_date',
+    'scheduled_time',
+    'scheduled_at_utc',
+    'timezone',
+  ];
+  const sets = [];
+  const params = [];
+  for (const key of allowed) {
+    if (key in fields) {
+      sets.push(`${key} = ?`);
+      params.push(fields[key]);
+    }
+  }
+  if (sets.length === 0) return false;
+  sets.push('updated_at = ?');
+  params.push(nowLocal());
+  params.push(id);
+  const res = db
+    .prepare(`UPDATE schedules SET ${sets.join(', ')} WHERE id = ? AND status = 'SCHEDULED'`)
+    .run(...params);
+  return res.changes > 0;
+}
+
+function cancelSchedule(id, actorUsername) {
+  const db = getDb();
+  const res = db
+    .prepare(
+      `UPDATE schedules
+          SET status='CANCELLED', cancelled_at=?, cancelled_by=?, updated_at=?
+        WHERE id=? AND status='SCHEDULED'`
+    )
+    .run(nowLocal(), actorUsername || null, nowLocal(), id);
+  return res.changes > 0;
+}
+
+function listDueSchedules(nowUtc, limit = 50) {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT * FROM schedules
+        WHERE status = 'SCHEDULED' AND scheduled_at_utc <= ?
+        ORDER BY scheduled_at_utc ASC, id ASC LIMIT ?`
+    )
+    .all(nowUtc, limit);
+}
+
+/**
+ * Despacha atómicamente una programación vencida hacia la cola existente.
+ * - Crea (o reutiliza) el transfer_request con message_id idempotente.
+ * - Encola el job de forma idempotente.
+ * - Transiciona SCHEDULED -> QUEUED solo si sigue en SCHEDULED.
+ * Todo dentro de una única transacción: un crash no deja estados a medias.
+ */
+function dispatchSchedule(id, opts = {}) {
+  const db = getDb();
+  const nowUtc = opts.nowUtc || new Date().toISOString();
+  const lateThresholdMs = opts.lateThresholdMs || 0;
+
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const sch = db.prepare('SELECT * FROM schedules WHERE id = ?').get(id);
+    if (!sch || sch.status !== 'SCHEDULED') {
+      db.exec('COMMIT');
+      return { dispatched: false, reason: 'not_scheduled' };
+    }
+    if (sch.scheduled_at_utc > nowUtc) {
+      db.exec('COMMIT');
+      return { dispatched: false, reason: 'not_due' };
+    }
+
+    const messageId = `sched:${id}`;
+    let request = db
+      .prepare('SELECT * FROM transfer_requests WHERE message_id = ?')
+      .get(messageId);
+    let requestId;
+    if (request) {
+      requestId = request.id;
+    } else {
+      const ins = db
+        .prepare(
+          `INSERT INTO transfer_requests
+             (message_id, phone_number, document, source_branch,
+              destination_branch, status, error_message, raw_message,
+              origin, created_by_username, schedule_id, created_at)
+           VALUES (?, '', ?, NULL, ?, 'PENDING', NULL, NULL, 'panel', ?, ?, ?)`
+        )
+        .run(messageId, sch.document, sch.destination_branch, sch.created_by_username, id, nowLocal());
+      requestId = ins.lastInsertRowid;
+    }
+
+    let job = db.prepare('SELECT id FROM job_queue WHERE request_id = ?').get(requestId);
+    let jobId;
+    if (job) {
+      jobId = job.id;
+    } else {
+      const payload = JSON.stringify({
+        origin: 'panel',
+        notify: false,
+        scheduleId: id,
+        document: sch.document,
+        branch: sch.destination_branch,
+        phoneNumber: '',
+        chatId: null,
+      });
+      const ins = db
+        .prepare(
+          `INSERT INTO job_queue (request_id, document, payload, status, priority, created_at)
+           VALUES (?, ?, ?, 'PENDING', 0, ?)`
+        )
+        .run(requestId, sch.document, payload, nowLocal());
+      jobId = ins.lastInsertRowid;
+    }
+
+    const late =
+      Date.parse(nowUtc) - Date.parse(sch.scheduled_at_utc) > lateThresholdMs ? 1 : 0;
+
+    db.prepare(
+      `UPDATE schedules
+          SET status='QUEUED', request_id=?, job_id=?, dispatched_at=?,
+              late=?, updated_at=?
+        WHERE id=? AND status='SCHEDULED'`
+    ).run(requestId, jobId, nowLocal(), late, nowLocal(), id);
+
+    insertScheduleAudit({
+      schedule_id: id,
+      action: 'DISPATCHED',
+      actor_username: sch.created_by_username,
+      actor_user_id: sch.created_by_user_id,
+      details: { requestId, jobId, late: !!late, nowUtc },
+    });
+
+    db.exec('COMMIT');
+    return { dispatched: true, requestId, jobId, late: !!late };
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+/**
+ * Proyecta el estado de transfer_requests sobre las programaciones activas.
+ * No ejecuta nada: solo sincroniza QUEUED/PROCESSING con la cola/worker.
+ */
+function syncScheduleStatuses() {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT s.id, s.status, s.request_id, s.created_by_username,
+              s.created_by_user_id, t.status AS req_status,
+              t.error_message, t.completed_at
+         FROM schedules s
+         JOIN transfer_requests t ON t.id = s.request_id
+        WHERE s.status IN ('QUEUED','PROCESSING') AND s.request_id IS NOT NULL`
+    )
+    .all();
+
+  const map = {
+    PENDING: 'QUEUED',
+    PROCESSING: 'PROCESSING',
+    SUCCESS: 'SUCCESS',
+    FAILED: 'FAILED',
+  };
+  const updated = [];
+
+  for (const r of rows) {
+    const next = map[r.req_status];
+    if (!next || next === r.status) continue;
+    const terminal = next === 'SUCCESS' || next === 'FAILED';
+    db.prepare(
+      `UPDATE schedules
+          SET status=?, updated_at=?, executed_at=?, error_message=?, result_message=?
+        WHERE id=?`
+    ).run(
+      next,
+      nowLocal(),
+      terminal ? (r.completed_at || nowLocal()) : null,
+      next === 'FAILED' ? (r.error_message || null) : null,
+      next === 'SUCCESS' ? 'Traslado ejecutado correctamente' : null,
+      r.id
+    );
+    insertScheduleAudit({
+      schedule_id: r.id,
+      action: next === 'SUCCESS' ? 'EXECUTED' : next === 'FAILED' ? 'FAILED' : 'STATUS_CHANGED',
+      actor_username: 'sistema',
+      actor_user_id: null,
+      details: { status: next },
+    });
+    updated.push(r.id);
+  }
+  return updated;
+}
+
+function insertScheduleAudit(entry) {
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO schedule_audit
+       (schedule_id, action, actor_username, actor_user_id, details, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(
+    entry.schedule_id,
+    entry.action,
+    entry.actor_username || null,
+    entry.actor_user_id || null,
+    entry.details ? JSON.stringify(entry.details) : null,
+    nowLocal()
+  );
+}
+
+function listScheduleAudit(scheduleId) {
+  const db = getDb();
+  return db
+    .prepare(
+      'SELECT * FROM schedule_audit WHERE schedule_id = ? ORDER BY id ASC'
+    )
+    .all(scheduleId);
+}
+
 module.exports = {
   // transfer_requests
   createTransferRequest,
@@ -374,4 +781,23 @@ module.exports = {
   removeAllowedNumber,
   getNumberLabel,
   normalizePhoneKey,
+  // users
+  createUser,
+  findUserByUsername,
+  findUserById,
+  listUsers,
+  updateUser,
+  countUsers,
+  // schedules
+  createSchedule,
+  getScheduleById,
+  listSchedules,
+  countSchedules,
+  updateSchedule,
+  cancelSchedule,
+  listDueSchedules,
+  dispatchSchedule,
+  syncScheduleStatuses,
+  insertScheduleAudit,
+  listScheduleAudit,
 };

@@ -37,9 +37,7 @@ function getStatusSnapshot() {
       running: !!global.__workerRunning,
       concurrency: config.queue.concurrency,
     },
-    browser: {
-      available: browserState(),
-    },
+    browser: browserState(),
     updatedAt: new Date().toISOString(),
   };
 }

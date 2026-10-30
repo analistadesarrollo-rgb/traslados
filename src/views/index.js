@@ -102,6 +102,8 @@ function layout(title, body, active, auth) {
   .row-actions { display:flex; gap:6px; flex-wrap:wrap }
   .inline-edit { display:none; margin-top:16px; border-top:1px solid var(--line); padding-top:16px }
 </style>
+<link rel="stylesheet" href="/picker.css">
+<script src="/picker.js"></script>
 </head>
 <body>
 <nav>
@@ -488,8 +490,8 @@ function renderSchedules(auth) {
     <div class="form-grid">
       <div><label>Documento</label><input id="e-document"></div>
       <div><label>Sucursal destino</label><input id="e-branch"></div>
-      <div><label>Fecha (Bogotá)</label><input id="e-date" type="date"></div>
-      <div><label>Hora (Bogotá)</label><input id="e-time" type="time"></div>
+      <div><label>Fecha (Bogotá)</label><input id="e-date" type="text" placeholder="AAAA-MM-DD"></div>
+      <div><label>Hora (Bogotá)</label><input id="e-time" type="text" placeholder="HH:MM"></div>
       <div class="row-actions">
         <button class="btn" onclick="saveEdit()">Guardar cambios</button>
         <button class="btn secondary" onclick="closeEdit()">Cancelar</button>
@@ -507,6 +509,27 @@ function renderSchedules(auth) {
     el.textContent = text;
     setTimeout(()=>{ el.className='msg'; el.textContent=''; }, 5000);
   }
+  function bogotaNow(){
+    const s = new Date().toLocaleString('sv-SE', { timeZone:'America/Bogota' });
+    const parts = s.split(' ');
+    return { date: parts[0], time: (parts[1]||'').slice(0,5) };
+  }
+  function syncEditMin(){
+    const now = bogotaNow();
+    const dateEl = document.getElementById('e-date');
+    const timeEl = document.getElementById('e-time');
+    dateEl.dataset.minDate = now.date;
+    if(dateEl.value === now.date){
+      timeEl.dataset.minTime = now.time;
+      if(timeEl.value && timeEl.value < now.time) timeEl.value = '';
+    } else {
+      delete timeEl.dataset.minTime;
+    }
+  }
+  TransferPicker.date(document.getElementById('e-date'));
+  TransferPicker.time(document.getElementById('e-time'));
+  document.getElementById('e-date').addEventListener('change', syncEditMin);
+  syncEditMin();
   async function load(){
     const qs = new URLSearchParams();
     const status = document.getElementById('f-status').value;
@@ -554,6 +577,7 @@ function renderSchedules(auth) {
     document.getElementById('e-branch').value = s.destination_branch;
     document.getElementById('e-date').value = s.scheduled_date;
     document.getElementById('e-time').value = s.scheduled_time;
+    syncEditMin();
     document.getElementById('edit-box').style.display = 'block';
     document.getElementById('edit-box').scrollIntoView({behavior:'smooth'});
   }
@@ -595,8 +619,8 @@ function renderScheduleNew(auth) {
     <div class="form-grid">
       <div><label>Documento del empleado</label><input id="p-document" inputmode="numeric" placeholder="Ej: 1234567890" autocomplete="off"></div>
       <div><label>Sucursal destino (código)</label><input id="p-branch" placeholder="Ej: 1" autocomplete="off"></div>
-      <div><label>Fecha (Bogotá)</label><input id="p-date" type="date"></div>
-      <div><label>Hora (Bogotá)</label><input id="p-time" type="time"></div>
+      <div><label>Fecha (Bogotá)</label><input id="p-date" type="text" placeholder="AAAA-MM-DD"></div>
+      <div><label>Hora (Bogotá)</label><input id="p-time" type="text" placeholder="HH:MM"></div>
       <div class="row-actions">
         <button class="btn" onclick="submitSchedule()">Programar</button>
         <a class="btn secondary" href="/schedules" style="text-decoration:none">Ver programaciones</a>
@@ -618,12 +642,19 @@ function renderScheduleNew(auth) {
   }
   function syncHint(){
     const now = bogotaNow();
-    document.getElementById('p-date').min = now.date;
-    const date = document.getElementById('p-date').value;
+    const dateEl = document.getElementById('p-date');
     const timeEl = document.getElementById('p-time');
-    if(date === now.date){ timeEl.min = now.time; } else { timeEl.removeAttribute('min'); }
+    dateEl.dataset.minDate = now.date;
+    if(dateEl.value === now.date){
+      timeEl.dataset.minTime = now.time;
+      if(timeEl.value && timeEl.value < now.time) timeEl.value = '';
+    } else {
+      delete timeEl.dataset.minTime;
+    }
     document.getElementById('p-hint').textContent = 'Hora actual en Bogotá: ' + now.date + ' ' + now.time;
   }
+  TransferPicker.date(document.getElementById('p-date'));
+  TransferPicker.time(document.getElementById('p-time'));
   document.getElementById('p-date').addEventListener('change', syncHint);
   syncHint(); setInterval(syncHint, 30000);
   async function submitSchedule(){

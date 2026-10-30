@@ -1,0 +1,106 @@
+.tp-wrap { position: relative; width: 100%; }
+.tp-wrap.tp-active > input { border-color: var(--blue, #3b82f6); }
+.tp-wrap > input { cursor: pointer; }
+
+.tp-pop {
+  display: none;
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 290px;
+  max-width: 92vw;
+  padding: 12px;
+  background: #0b1220;
+  border: 1px solid var(--line, #334155);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+.tp-pop.open { display: block; }
+
+.tp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.tp-title { font-weight: 700; font-size: 14px; }
+.tp-nav {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--line, #334155);
+  background: #1e293b;
+  color: #e2e8f0;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+.tp-nav:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.tp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.tp-week { margin-bottom: 4px; }
+.tp-week span {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  padding: 4px 0;
+}
+
+.tp-day {
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 13px;
+  cursor: pointer;
+}
+.tp-day:hover:not(:disabled) { background: #1e293b; }
+.tp-day.today { outline: 1px solid #3b82f6; }
+.tp-day.selected { background: #1d4ed8; color: #fff; font-weight: 700; }
+.tp-day.disabled { opacity: 0.25; cursor: not-allowed; }
+.tp-day.empty { cursor: default; }
+
+.tp-foot { display: flex; justify-content: flex-end; margin-top: 10px; }
+.tp-today,
+.tp-now {
+  border: none;
+  border-radius: 8px;
+  background: #334155;
+  color: #e2e8f0;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tp-time { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tp-col-title {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+.tp-scroll {
+  height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  scrollbar-width: thin;
+}
+.tp-tick {
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #e2e8f0;
+  padding: 7px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.tp-tick:hover:not(:disabled) { background: #1e293b; }
+.tp-tick.selected { background: #1d4ed8; color: #fff; font-weight: 700; }
+.tp-tick:disabled { opacity: 0.25; cursor: not-allowed; }

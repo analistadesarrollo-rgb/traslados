@@ -79,6 +79,7 @@ Jenkins pipeline (`Jenkinsfile`): copia `.env` desde credenciales Jenkins, ejecu
 - El planificador (`src/scheduler/index.js`) corre en el proceso worker: despacha `SCHEDULED -> QUEUED` de forma atómica e idempotente (transacción + `message_id = sched:<id>` + índice único parcial) y sincroniza el estado con `transfer_requests`.
 - Los traslados programados reutilizan la cola/worker/automatización existentes. El job lleva `notify:false` para no intentar enviar WhatsApp.
 - Si el servidor estuvo apagado, la programación vencida se despacha al arrancar y se marca `late=1` (visible en la UI).
+- Los formularios de fecha/hora usan un selector propio (`public/picker.js` + `public/picker.css`): calendario mensual y columnas de hora/minuto en zona Bogotá, sin dependencias externas.
 - Variables: `SCHEDULER_ENABLED`, `SCHEDULER_POLL_INTERVAL_MS`, `SCHEDULER_BATCH_SIZE`, `SCHEDULER_LATE_THRESHOLD_MS`, `APP_TIMEZONE`.
 
 ## Inconsistencias conocidas (documentación vs código)

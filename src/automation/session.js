@@ -4,6 +4,7 @@ const config = require('../config');
 const selectors = require('../config/selectors');
 const logger = require('../logger').child('automation.session');
 const { settle, waitMs, captureEvidence } = require('./browser');
+const { passwordCandidates } = require('./credentials');
 
 /**
  * Gestión de la sesión del sistema web externo real (BusinessNET).
@@ -57,7 +58,7 @@ async function isUnauthorizedPage(page) {
   return false;
 }
 
-/** Completa el formulario de login de Cerberus. */
+/** Completa el formulario de login de Cerberus, probando contraseñas alternativas. */
 async function doLogin(page) {
   const { usernameField, passwordField, submitButton } = selectors.LOGIN_SELECTORS;
   const missing = [usernameField, passwordField, submitButton].filter((s) => !s || String(s).includes('{{'));
@@ -66,35 +67,82 @@ async function doLogin(page) {
     return { ok: false, error: 'selectors-not-configured' };
   }
 
-  logger.info('Iniciando sesión en el portal de seguridad');
-  await page.waitForSelector(usernameField, { timeout: config.automation.timeoutMs, visible: true });
-  await waitMs(1000);
-  await page.click(usernameField, { clickCount: 3 });
-  await waitMs(500);
-  await page.type(usernameField, config.webSystem.user, { delay: 80 });
-  await waitMs(1000);
-
-  await page.waitForSelector(passwordField, { timeout: config.automation.timeoutMs, visible: true });
-  await page.click(passwordField);
-  await waitMs(500);
-  await page.type(passwordField, config.webSystem.password, { delay: 80 });
-  await waitMs(1000);
-
-  await page.click(submitButton);
-
-  // Esperar a que se cargue el home del portal (sesión activa)
-  try {
-    await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
-    await settle(page);
-  } catch (_) {
-    /* ignore */
+  const candidates = passwordCandidates(config.webSystem.password, config.webSystem.fallbackPasswords);
+  if (candidates.length === 0) {
+    logger.warn('No hay contraseña configurada para el sistema web');
+    return { ok: false, error: 'no-password' };
   }
 
-  if (await isHomePage(page)) {
-    logger.info('Sesión iniciada en el portal de seguridad');
-    return { ok: true };
+  for (let i = 0; i < candidates.length; i += 1) {
+    const password = candidates[i];
+    logger.info('Iniciando sesión en el portal de seguridad', {
+      attempt: i + 1,
+      total: candidates.length,
+    });
+
+    try {
+      // Si un intento anterior dejó una página distinta al login, volver a él.
+      if (!(await isLoginPage(page))) {
+        await page.goto(config.webSystem.url, {
+          waitUntil: 'domcontentloaded',
+          timeout: config.automation.timeoutMs,
+        });
+        await settle(page);
+      }
+
+      await page.waitForSelector(usernameField, { timeout: config.automation.timeoutMs, visible: true });
+      await waitMs(1000);
+      await page.click(usernameField, { clickCount: 3 });
+      await waitMs(500);
+      await page.type(usernameField, config.webSystem.user, { delay: 80 });
+      await waitMs(1000);
+
+      await page.waitForSelector(passwordField, { timeout: config.automation.timeoutMs, visible: true });
+      await page.click(passwordField, { clickCount: 3 });
+      await waitMs(500);
+      await page.type(passwordField, password, { delay: 80 });
+      await waitMs(1000);
+
+      await page.click(submitButton);
+
+      // Esperar a que se cargue el home del portal (sesión activa)
+      try {
+        await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
+        await settle(page);
+      } catch (_) {
+        /* ignore */
+      }
+
+      if (await isHomePage(page)) {
+        logger.info('Sesión iniciada en el portal de seguridad', { attempt: i + 1 });
+        return { ok: true };
+      }
+
+      // Si seguimos en el login, la contraseña fue rechazada: probar la siguiente.
+      if (await isLoginPage(page)) {
+        logger.warn('Contraseña rechazada, probando alternativa', {
+          attempt: i + 1,
+          total: candidates.length,
+        });
+        await waitMs(1500);
+        continue;
+      }
+
+      // Estado desconocido: no reintentar para no provocar bloqueos.
+      logger.warn('Login no pudo verificarse', { url: page.url() });
+      return { ok: false, error: 'login-failed' };
+    } catch (err) {
+      logger.warn('Error durante el intento de login', {
+        attempt: i + 1,
+        total: candidates.length,
+        error: err.message,
+      });
+      if (i === candidates.length - 1) return { ok: false, error: 'login-error' };
+      await waitMs(1500);
+    }
   }
-  logger.warn('Login no pudo verificarse');
+
+  logger.warn('Login fallido con todas las contraseñas configuradas');
   return { ok: false, error: 'login-failed' };
 }
 

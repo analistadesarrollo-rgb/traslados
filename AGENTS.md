@@ -60,6 +60,7 @@ Jenkins pipeline (`Jenkinsfile`): copia `.env` desde credenciales Jenkins, ejecu
 ## Errores comunes
 
 - `AUTOMATION_NOT_CONFIGURED` → selectores faltantes en `src/config/selectors.js` o `WEB_SYSTEM_*` faltante en `.env`
+- `LOGIN_FAILED` → el login prueba `WEB_SYSTEM_PASSWORD` y luego las alternativas de `WEB_SYSTEM_PASSWORDS` (por defecto las contraseñas de rotación conocidas). Las contraseñas nunca se escriben en los logs.
 - QR necesario solo en la primera conexión de WhatsApp (se persiste en `data/wa-session`)
 - `ALLOWED_PHONE_NUMBERS` vacío = todos los números permitidos
 - `WORKER_CONCURRENCY` debe mantenerse en 1 (supuesto de lock por documento)

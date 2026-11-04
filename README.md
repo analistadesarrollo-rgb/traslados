@@ -130,6 +130,7 @@ npm start
 | `WEB_SYSTEM_URL` | URL real del sistema web a automatizar (login + sección de turnos). |
 | `WEB_SYSTEM_USER` | Usuario del sistema web. |
 | `WEB_SYSTEM_PASSWORD` | Contraseña del sistema web. |
+| `WEB_SYSTEM_PASSWORDS` | Contraseñas alternativas (coma-separadas) que se probarán si la principal falla. Si se omite, se usan las contraseñas de rotación conocidas. |
 | `DB_FILE` | Ruta del archivo SQLite (por defecto `./data/transfer-bot.sqlite`). |
 | `WA_SESSION_DIR` | Carpeta de sesión persistente de WhatsApp. |
 | `WA_QR_TIMEOUT_MS` | Tiempo (ms) de espera para escanear el QR. |
@@ -141,7 +142,7 @@ npm start
 | `ADMIN_USER` / `ADMIN_PASSWORD` | Credenciales básicas del panel admin. |
 | `LOG_LEVEL` / `LOG_DIR` | Nivel y carpeta de logs. |
 
-> ⚠️ **`WEB_SYSTEM_USER`, `WEB_SYSTEM_PASSWORD` y `ADMIN_PASSWORD` deben rellenarse en `.env`** (nunca en código ni en `.env.example`).
+> ⚠️ **`WEB_SYSTEM_USER`, `WEB_SYSTEM_PASSWORD` y `ADMIN_PASSWORD` deben rellenarse en `.env`**. Las contraseñas alternativas de rotación se configuran en `WEB_SYSTEM_PASSWORDS`; si se omite, se usan las conocidas por defecto.
 
 ### Selectores del sistema web (IMPORTANTE)
 

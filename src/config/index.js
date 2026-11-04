@@ -43,6 +43,10 @@ const config = {
     url: process.env.WEB_SYSTEM_URL || '',
     user: process.env.WEB_SYSTEM_USER || '',
     password: process.env.WEB_SYSTEM_PASSWORD || '',
+    // El sistema web rota la contraseña entre valores conocidos. Si la
+    // principal falla, se prueban estas alternativas en orden. Se pueden
+    // sobrescribir con WEB_SYSTEM_PASSWORDS=pass1,pass2.
+    fallbackPasswords: strList('WEB_SYSTEM_PASSWORDS', ['123456', '654321']),
   },
 
   database: {
